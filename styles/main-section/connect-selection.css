@@ -1,0 +1,9 @@
+.connect-selection-section {
+    padding: 12px 8px;
+}
+
+.connections-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}

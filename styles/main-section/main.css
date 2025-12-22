@@ -1,0 +1,26 @@
+@import "./connect-selection.css";
+@import "./invite.css";
+@import "./join.css";
+
+/* Main wrapper for the popup's main area */
+.section-main {
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* Common button style used in the main-section */
+.btn {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+}
+
+.btn .icon {
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+    margin-right: 6px;
+}
