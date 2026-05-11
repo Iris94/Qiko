@@ -53,10 +53,26 @@ export function mountInvite(container, { onBack } = {}) {
 
 
   const onGenerate = async () => {
+    genBtn.disabled = true;
     const key = generate128BitKey();
     input.value = key;
-    await saveSession({ sessionId: key, createdAt: Date.now() });
-    input.select();
+    
+    // Initialize WebRTC via Background
+    chrome.runtime.sendMessage({
+      target: 'background',
+      action: 'init_peer',
+      peerId: key
+    }, async (response) => {
+      genBtn.disabled = false;
+      if (response && response.success) {
+        await saveSession({ sessionId: key, createdAt: Date.now() });
+        input.select();
+        // The popup.js listener will switch the view to chat once connection happens
+      } else {
+        console.error('Failed to init peer', response);
+        alert('Failed to initialize connection. See console.');
+      }
+    });
   };
 
   const onCopy = async () => {

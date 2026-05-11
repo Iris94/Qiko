@@ -2,6 +2,7 @@ import { getUserEmail } from './utils/user.js';
 import { mountConnections } from './components/connections.js';
 import { mountInvite } from './components/invite.js';
 import { mountJoin } from './components/join.js';
+import { mountMessage } from './components/message.js';
 import { getSession } from './storage.js';
 
 let current = null;
@@ -65,9 +66,26 @@ function showJoin() {
   setHeaderToDashboardMode(false);
 }
 
+function showChat() {
+  if (current && current.destroy) current.destroy();
+  clearMain();
+  const main = document.querySelector('.section-main');
+  current = mountMessage(main, {
+    onDisconnect: () => renderDashboard()
+  });
+  state = 'chat';
+  setHeaderToDashboardMode(false);
+}
+
 function handleHeaderButtonClick() {
   const connectBtn = document.querySelector('.connect-text');
   if (!connectBtn) return;
+  
+  if (state === 'chat') {
+    // Cannot navigate away while in chat unless disconnect
+    return;
+  }
+  
   if (state === 'dashboard') {
     showConnections();
   } else {
@@ -80,16 +98,30 @@ async function initUI() {
   const connectBtn = document.querySelector('.connect-text');
   connectBtn.addEventListener('click', handleHeaderButtonClick);
 
-  renderDashboard();
-
-  const session = await getSession();
-  if (session && session.sessionId) {
-    const main = document.querySelector('.section-main');
-    const note = document.createElement('p');
-    note.className = 'session-note';
-    note.textContent = `Saved session: ${session.sessionId}`;
-    main.appendChild(note);
-  }
+  // Check connection status
+  chrome.runtime.sendMessage({
+    target: 'background',
+    action: 'get_status'
+  }, (response) => {
+    if (response && response.isConnected) {
+      showChat();
+    } else {
+      renderDashboard();
+    }
+  });
+  
+  // Listen for connection events from background
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.target === 'popup') {
+      if (message.action === 'peer_connected') {
+        showChat();
+      } else if (message.action === 'peer_disconnected') {
+        if (state === 'chat') {
+          renderDashboard();
+        }
+      }
+    }
+  });
 }
 
 document.addEventListener('DOMContentLoaded', async () => {

@@ -60,11 +60,23 @@ export function mountJoin(container, { onBack } = {}) {
 
   const onConnect = async () => {
     if (!input.value) return;
+    connectBtn.disabled = true;
 
-    await saveSession({ sessionId: input.value, createdAt: Date.now() });
-
-    connectBtn.textContent = 'Saved';
-    setTimeout(() => (connectBtn.innerHTML = `<img src="icons/ui/receive_icon.svg" alt="connect" class="icon"> Connect`), 900);
+    chrome.runtime.sendMessage({
+      target: 'background',
+      action: 'connect_to_peer',
+      targetId: input.value.trim()
+    }, async (response) => {
+      connectBtn.disabled = false;
+      if (response && response.success) {
+        await saveSession({ sessionId: input.value, createdAt: Date.now() });
+        connectBtn.textContent = 'Saved';
+        setTimeout(() => (connectBtn.innerHTML = `<img src="icons/ui/receive_icon.svg" alt="connect" class="icon"> Connect`), 900);
+      } else {
+        console.error('Connection failed', response);
+        alert('Failed to connect. Is the peer online?');
+      }
+    });
   };
 
   const pasteHandler = onPaste;

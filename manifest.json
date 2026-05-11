@@ -13,6 +13,7 @@
   },
   "background": {
     "service_worker": "background/main.js",
+    "scripts": ["lib/peerjs.min.js", "background/main.js"],
     "type": "module"
   },
   "action": {
@@ -24,5 +25,5 @@
       "128": "icons/icon128.png"
     }
   },
-  "permissions": ["activeTab", "storage", "scripting", "identity", "identity.email"]
+  "permissions": ["activeTab", "storage", "scripting", "identity", "identity.email", "offscreen", "notifications"]
 }
