@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qiko Logins</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+    <div id="screen-loading" class="container hide">
+        <div class="loading-wrapper">
+            <div class="spinner-logo">
+                <svg class="loading-logo-svg" width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 22C12 22 20 18 20 12V5L12 2L4 5V12C4 18 12 22 12 22Z" fill="var(--color-primary)" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M9 11L11 13L15 9" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <h2 id="loading-text" class="loading-title">Securing your connection...</h2>
+        </div>
+        <div class="footer-wrapper">
+            <select class="theme-select-dropdown">
+                <option value="system">System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+            </select>
+            <span class="footer-text"></span>
+        </div>
+    </div>
+
+    <div id="screen-profile-setup" class="container hide">
+        <div class="screen-header justify-end">
+            <span class="status-badge">
+                <span class="status-dot"></span> Connected
+            </span>
+        </div>
+
+        <h2 class="setup-title">Your Qiko ID</h2>
+
+        <div class="id-display-fullwidth">
+            <input type="text" id="generated-id-input" class="form-control font-mono id-input-full" readonly value="qx-xxxx-xxxx-0">
+            <button type="button" id="btn-copy-id" class="btn-copy-in" title="Copy Qiko ID">
+                <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span id="copy-tooltip" class="copy-tooltip">Copy</span>
+            </button>
+        </div>
+
+        <div class="inline-actions">
+            <button type="button" id="btn-setup-back" class="btn btn-outline">Back</button>
+            <button type="button" id="btn-setup-skip" class="btn btn-primary">Continue without registering</button>
+        </div>
+
+        <div class="setup-divider"></div>
+
+        <p class="setup-description">Add email and password to sync across browsers.</p>
+
+        <form id="form-profile-setup" class="setup-form">
+            <div class="form-group">
+                <label for="setup-email">Email</label>
+                <input type="email" id="setup-email" class="form-control" placeholder="name@example.com" required>
+            </div>
+            <div class="form-group">
+                <label for="setup-password">Password</label>
+                <input type="password" id="setup-password" class="form-control" placeholder="Minimum 6 characters" required minlength="6">
+            </div>
+            <div class="form-group">
+                <label for="setup-username">Username (Optional)</label>
+                <input type="text" id="setup-username" class="form-control" placeholder="Nickname">
+            </div>
+
+            <span class="setup-disclaimer">Completing this form is optional right now, but signing out will erase all your local data.</span>
+
+            <div id="setup-error-msg" class="error-text hide"></div>
+
+            <button type="submit" id="btn-register" class="btn btn-primary w-100 mt-8">Register</button>
+        </form>
+
+        <div class="footer-wrapper">
+            <select class="theme-select-dropdown">
+                <option value="system">System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+            </select>
+            <span class="footer-text"></span>
+        </div>
+    </div>
+
+    <div id="screen-verification" class="container hide">
+        <div class="screen-header justify-end">
+            <span class="status-badge">
+                <span class="status-dot"></span> Connected
+            </span>
+        </div>
+
+        <h2 class="setup-title">Verify Your Email</h2>
+        <p class="setup-description">We sent a verification email to <strong id="sent-code-email">email@example.com</strong>.<br><br>Please check your inbox, click the activation link, and then click below.</p>
+
+        <div id="verification-error-msg" class="error-text hide"></div>
+
+        <button type="button" id="btn-verify-submit" class="btn btn-primary w-100 mt-16">I have verified my email</button>
+        <button type="button" id="btn-resend-verification" class="btn btn-outline w-100 mt-8">Resend verification email</button>
+        <button type="button" id="btn-verification-back" class="btn btn-outline w-100 mt-8">Back to Profile Setup</button>
+
+        <div class="footer-wrapper">
+            <select class="theme-select-dropdown">
+                <option value="system">System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+            </select>
+            <span class="footer-text"></span>
+        </div>
+    </div>
+
+    <div id="screen-sign-in" class="container hide">
+        <div class="screen-header">
+            <button type="button" id="btn-back-to-start" class="btn-icon-back" title="Back">
+                <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            </button>
+            <span class="status-badge">
+                <span class="status-dot"></span> Connected
+            </span>
+        </div>
+
+        <h2 class="setup-title">Sign In</h2>
+        <p class="setup-description">Enter your email and password to retrieve your Qiko ID and sync contacts.</p>
+
+        <form id="form-sign-in" class="setup-form">
+            <div class="form-group">
+                <label for="signin-email">Email</label>
+                <input type="email" id="signin-email" class="form-control" placeholder="name@example.com" required>
+            </div>
+            <div class="form-group">
+                <label for="signin-password">Password</label>
+                <input type="password" id="signin-password" class="form-control" placeholder="Enter password" required>
+            </div>
+            <div id="signin-error-msg" class="error-text hide"></div>
+
+            <button type="submit" id="btn-signin-submit" class="btn btn-primary w-100 mt-16">Sign In</button>
+        </form>
+
+        <div class="footer-wrapper">
+            <select class="theme-select-dropdown">
+                <option value="system">System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+            </select>
+            <span class="footer-text"></span>
+        </div>
+    </div>
+
+    <script type="module" src="../popup/popup.js"></script>
+</body>
+</html>

@@ -6,24 +6,31 @@
   "author": "Mirza Iris - neuro94",
   "homepage_url": "https://mirza-iris.dev",
   "icons": {
-    "16": "icons/icon128.png",
-    "32": "icons/icon128.png",
-    "48": "icons/icon128.png",
-    "128": "icons/icon128.png"
-  },
-  "background": {
-    "service_worker": "background/main.js",
-    "scripts": ["lib/peerjs.min.js", "background/main.js"],
-    "type": "module"
+    "16": "icons/logo-16.png",
+    "32": "icons/logo-32.png",
+    "48": "icons/logo-48.png",
+    "128": "icons/logo-128.png"
   },
   "action": {
     "default_popup": "index.html",
     "default_icon": {
-      "16": "icons/icon128.png",
-      "32": "icons/icon128.png",
-      "48": "icons/icon128.png",
-      "128": "icons/icon128.png"
+      "16": "icons/logo-16.png",
+      "32": "icons/logo-32.png",
+      "48": "icons/logo-48.png",
+      "128": "icons/logo-128.png"
     }
   },
-  "permissions": ["activeTab", "storage", "scripting", "identity", "identity.email", "offscreen", "notifications"]
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "identity",
+    "identity.email",
+    "notifications",
+    "alarms"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  }
 }

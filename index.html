@@ -3,29 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Qiko</title>
+    <title>Qiko - Secure Welcome</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Div 1: Connect + User -->
-        <div class="section section-header">
-            <button type="button"  class="connect-text">Connect</button>
-            <div class="user-box">
-                <div class="user-status"></div>
-            </div>
+    <div class="container welcome-container">
+        <div class="logo-container">
+            <svg class="welcome-logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 22C12 22 20 18 20 12V5L12 2L4 5V12C4 18 12 22 12 22Z" fill="var(--color-primary)" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 11L11 13L15 9" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
         </div>
-        
-        <!-- Div 2: Main Content (empty for now) -->
-        <div class="section section-main">
-            <h1 class="test-phase">Dashboard</h1>
+
+        <h1 class="welcome-title">Qiko - Secure &amp; Private Browser Chat</h1>
+        <p class="welcome-desc">
+            Create or sign in with your unique Qiko ID to start private communication.
+        </p>
+
+        <div class="actions-group">
+            <button id="btn-create-id" class="btn btn-primary">Create Qiko ID</button>
+            <button id="btn-sign-id" class="btn btn-outline">Sign with Qiko ID</button>
         </div>
-        
-        <!-- Div 3: Settings -->
-        <div class="section section-footer">
-            <span class="settings-text">Settings</span>
+
+        <div class="footer-wrapper">
+            <select class="theme-select-dropdown">
+                <option value="system">System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+            </select>
+            <span class="footer-text"></span>
         </div>
     </div>
+
     <script type="module" src="popup/popup.js"></script>
 </body>
 </html>
