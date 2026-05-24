@@ -342,6 +342,23 @@ async function firebaseLinkEmail(idToken, email, password) {
   };
 }
 
+async function firebaseUnlinkEmail(idToken) {
+  const url = `https://identitytoolkit.googleapis.com/v1/accounts:update?key=${CONFIG.FIREBASE_API_KEY}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      idToken: idToken,
+      deleteProvider: ["password"]
+    })
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error?.message || "Failed to unlink email.");
+  }
+  return await response.json();
+}
+
 async function firebaseSendEmailVerification(idToken) {
   const url = `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${CONFIG.FIREBASE_API_KEY}`;
   const response = await fetch(url, {
@@ -414,8 +431,8 @@ async function firebaseDeleteAccount(idToken) {
   return await response.json();
 }
 
-async function fetchAndIncrementUserCount() {
-  const url = `${CONFIG.FIREBASE_DB_URL}/user_count.json`;
+async function fetchAndIncrementUserCount(token) {
+  const url = `${CONFIG.FIREBASE_DB_URL}/user_count.json?auth=${token}`;
   
   const getResponse = await fetch(url);
   if (!getResponse.ok) {
@@ -439,8 +456,8 @@ async function fetchAndIncrementUserCount() {
   return nextCount;
 }
 
-async function isEmailRegistered(emailHash) {
-  const url = `${CONFIG.FIREBASE_DB_URL}/emails/${emailHash}.json`;
+async function isEmailRegistered(emailHash, token) {
+  const url = `${CONFIG.FIREBASE_DB_URL}/emails/${emailHash}.json?auth=${token}`;
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Database check failed: ${response.statusText}`);
@@ -449,10 +466,10 @@ async function isEmailRegistered(emailHash) {
   return data !== null;
 }
 
-async function saveIdentityToFirebase(qikoId, uid, email, username) {
+async function saveIdentityToFirebase(qikoId, uid, email, username, token) {
   const emailHash = await hashEmail(email);
   
-  const emailUrl = `${CONFIG.FIREBASE_DB_URL}/emails/${emailHash}.json`;
+  const emailUrl = `${CONFIG.FIREBASE_DB_URL}/emails/${emailHash}.json?auth=${token}`;
   const emailRes = await fetch(emailUrl, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -462,7 +479,7 @@ async function saveIdentityToFirebase(qikoId, uid, email, username) {
     throw new Error("Failed to register email mapping in database.");
   }
   
-  const idUrl = `${CONFIG.FIREBASE_DB_URL}/qiko_ids/${qikoId}.json`;
+  const idUrl = `${CONFIG.FIREBASE_DB_URL}/qiko_ids/${qikoId}.json?auth=${token}`;
   const idRes = await fetch(idUrl, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -472,7 +489,7 @@ async function saveIdentityToFirebase(qikoId, uid, email, username) {
     throw new Error("Failed to register Qiko ID registry in database.");
   }
   
-  const userUrl = `${CONFIG.FIREBASE_DB_URL}/users/${uid}.json`;
+  const userUrl = `${CONFIG.FIREBASE_DB_URL}/users/${uid}.json?auth=${token}`;
   const userProfile = {
     qiko_id: qikoId,
     email: email,
@@ -490,8 +507,8 @@ async function saveIdentityToFirebase(qikoId, uid, email, username) {
   }
 }
 
-async function saveGuestProfileToFirebase(qikoId, uid) {
-  const idUrl = `${CONFIG.FIREBASE_DB_URL}/qiko_ids/${qikoId}.json`;
+async function saveGuestProfileToFirebase(qikoId, uid, token) {
+  const idUrl = `${CONFIG.FIREBASE_DB_URL}/qiko_ids/${qikoId}.json?auth=${token}`;
   const idRes = await fetch(idUrl, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -501,7 +518,7 @@ async function saveGuestProfileToFirebase(qikoId, uid) {
     throw new Error("Failed to register Guest Qiko ID in database.");
   }
 
-  const userUrl = `${CONFIG.FIREBASE_DB_URL}/users/${uid}.json`;
+  const userUrl = `${CONFIG.FIREBASE_DB_URL}/users/${uid}.json?auth=${token}`;
   const userProfile = {
     qiko_id: qikoId,
     email: "",
@@ -590,7 +607,12 @@ async function initLoginsScreen() {
     if (loadingText) loadingText.textContent = "Securing your connection...";
     
     try {
-      const count = await fetchAndIncrementUserCount();
+      const anonymousSession = await firebaseSignInAnonymously();
+      tempUid = anonymousSession.uid;
+      tempToken = anonymousSession.idToken;
+      tempRefreshToken = anonymousSession.refreshToken;
+
+      const count = await fetchAndIncrementUserCount(tempToken);
       const generatedId = generateQikoId(count);
       tempGeneratedId = generatedId;
       
@@ -660,17 +682,16 @@ async function initLoginsScreen() {
       btnSetupSkip.disabled = true;
       btnSetupSkip.textContent = 'Generating...';
       try {
-        const anonymousSession = await firebaseSignInAnonymously();
-        await saveGuestProfileToFirebase(tempGeneratedId, anonymousSession.uid);
+        await saveGuestProfileToFirebase(tempGeneratedId, tempUid, tempToken);
 
         const guestState = {
-          qiko_user_id: anonymousSession.uid,
+          qiko_user_id: tempUid,
           qiko_email: '',
           qiko_username: 'Guest',
           qiko_registered: false,
           qiko_id: tempGeneratedId,
-          qiko_token: anonymousSession.idToken,
-          qiko_refresh_token: anonymousSession.refreshToken
+          qiko_token: tempToken,
+          qiko_refresh_token: tempRefreshToken
         };
         await storage.set(guestState);
         window.location.href = "dashboard.html";
@@ -704,7 +725,7 @@ async function initLoginsScreen() {
 
       try {
         const emailHash = await hashEmail(email);
-        const inUse = await isEmailRegistered(emailHash);
+        const inUse = await isEmailRegistered(emailHash, tempToken);
         if (inUse) {
           throw new Error("This email is already registered. Please sign in instead.");
         }
@@ -713,12 +734,8 @@ async function initLoginsScreen() {
         tempRegisterPassword = password;
         tempRegisterUsername = username;
 
-        let sessionAuth;
-        if (flow === 'upgrade') {
-          sessionAuth = await firebaseLinkEmail(tempToken, email, password);
-        } else {
-          sessionAuth = await firebaseSignUpWithEmail(email, password);
-        }
+        // Both create and upgrade flows link the email/password to the existing anonymous user
+        const sessionAuth = await firebaseLinkEmail(tempToken, email, password);
 
         tempUid = sessionAuth.uid;
         tempToken = sessionAuth.idToken;
@@ -758,6 +775,13 @@ async function initLoginsScreen() {
   const btnVerifyBack = document.getElementById('btn-verification-back');
   if (btnVerifyBack) {
     btnVerifyBack.addEventListener('click', async () => {
+      if (data && data.flow === 'upgrade') {
+        try {
+          await firebaseUnlinkEmail(tempToken);
+        } catch (err) {
+          console.error("Failed to unlink email on verification cancel:", err);
+        }
+      }
       await storage.remove('qiko_pending_verification');
 
       const guest = await storage.get('qiko_user_id');
@@ -864,16 +888,16 @@ async function initLoginsScreen() {
       try {
         const sessionAuth = await firebaseSignInWithEmail(email, password);
         
-        const userUrl = `${CONFIG.FIREBASE_DB_URL}/users/${sessionAuth.uid}.json`;
+        const userUrl = `${CONFIG.FIREBASE_DB_URL}/users/${sessionAuth.uid}.json?auth=${sessionAuth.idToken}`;
         const profileRes = await fetch(userUrl);
         if (!profileRes.ok) {
           throw new Error("Failed to retrieve user profile from database.");
         }
         let profile = await profileRes.json();
         if (!profile) {
-          const count = await fetchAndIncrementUserCount();
+          const count = await fetchAndIncrementUserCount(sessionAuth.idToken);
           const newQikoId = generateQikoId(count);
-          await saveIdentityToFirebase(newQikoId, sessionAuth.uid, email, "Guest");
+          await saveIdentityToFirebase(newQikoId, sessionAuth.uid, email, "Guest", sessionAuth.idToken);
           profile = {
             qiko_id: newQikoId,
             email: email,
@@ -947,7 +971,7 @@ function initProfileTab(state) {
         const nextUsername = usernameInput.value.trim();
 
         try {
-          const userUrl = `${CONFIG.FIREBASE_DB_URL}/users/${state.qiko_user_id}.json`;
+          const userUrl = `${CONFIG.FIREBASE_DB_URL}/users/${state.qiko_user_id}.json?auth=${state.qiko_token}`;
           const patchRes = await fetch(userUrl, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
@@ -956,7 +980,7 @@ function initProfileTab(state) {
           if (!patchRes.ok) throw new Error("Failed to update profile nodes in DB.");
 
           const emailHash = await hashEmail(nextEmail);
-          const emailUrl = `${CONFIG.FIREBASE_DB_URL}/emails/${emailHash}.json`;
+          const emailUrl = `${CONFIG.FIREBASE_DB_URL}/emails/${emailHash}.json?auth=${state.qiko_token}`;
           await fetch(emailUrl, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -995,6 +1019,41 @@ function initProfileTab(state) {
   } else {
     if (formEdit) formEdit.classList.add('hide');
     if (formUpgrade) formUpgrade.classList.remove('hide');
+
+    if (state.qiko_token) {
+      firebaseGetUserData(state.qiko_token).then(async (userInfo) => {
+        if (userInfo && userInfo.email) {
+          if (userInfo.emailVerified) {
+            try {
+              await saveIdentityToFirebase(state.qiko_id, state.qiko_user_id, userInfo.email, state.qiko_username);
+              const sessionState = {
+                qiko_registered: true,
+                qiko_email: userInfo.email
+              };
+              await storage.set(sessionState);
+              state.qiko_registered = true;
+              state.qiko_email = userInfo.email;
+              initProfileTab(state);
+            } catch (err) {
+              console.error("Auto-upgrade save failed:", err);
+            }
+          } else {
+            const pendingData = {
+              flow: 'upgrade',
+              uid: state.qiko_user_id,
+              token: state.qiko_token,
+              email: userInfo.email,
+              username: state.qiko_username || 'Guest',
+              qiko_id: state.qiko_id
+            };
+            await storage.set({ qiko_pending_verification: JSON.stringify(pendingData) });
+            window.location.href = "logins.html?flow=pending_verification";
+          }
+        }
+      }).catch(err => {
+        console.error("Failed to check user info on profile tab load:", err);
+      });
+    }
 
     if (formUpgrade) {
       formUpgrade.onsubmit = async (e) => {
@@ -1081,15 +1140,15 @@ function initProfileTab(state) {
         btnDelete.textContent = 'Deleting...';
 
         try {
-          const userUrl = `${CONFIG.FIREBASE_DB_URL}/users/${state.qiko_user_id}.json`;
+          const userUrl = `${CONFIG.FIREBASE_DB_URL}/users/${state.qiko_user_id}.json?auth=${state.qiko_token}`;
           await fetch(userUrl, { method: "DELETE" });
 
-          const idUrl = `${CONFIG.FIREBASE_DB_URL}/qiko_ids/${state.qiko_id}.json`;
+          const idUrl = `${CONFIG.FIREBASE_DB_URL}/qiko_ids/${state.qiko_id}.json?auth=${state.qiko_token}`;
           await fetch(idUrl, { method: "DELETE" });
 
           if (state.qiko_email) {
             const emailHash = await hashEmail(state.qiko_email);
-            const emailUrl = `${CONFIG.FIREBASE_DB_URL}/emails/${emailHash}.json`;
+            const emailUrl = `${CONFIG.FIREBASE_DB_URL}/emails/${emailHash}.json?auth=${state.qiko_token}`;
             await fetch(emailUrl, { method: "DELETE" });
           }
 
@@ -1163,7 +1222,7 @@ function initConnectTab(state) {
           throw new Error("You cannot add your own Qiko ID.");
         }
 
-        const lookupUrl = `${CONFIG.FIREBASE_DB_URL}/qiko_ids/${targetId}.json`;
+        const lookupUrl = `${CONFIG.FIREBASE_DB_URL}/qiko_ids/${targetId}.json?auth=${state.qiko_token}`;
         const res = await fetch(lookupUrl);
         if (!res.ok) throw new Error("Database lookups failed.");
         const targetUid = await res.json();
@@ -1172,7 +1231,7 @@ function initConnectTab(state) {
           throw new Error(`User not found with Qiko ID: ${targetId}`);
         }
 
-        const contactsUrl = `${CONFIG.FIREBASE_DB_URL}/users/${state.qiko_user_id}/contacts.json`;
+        const contactsUrl = `${CONFIG.FIREBASE_DB_URL}/users/${state.qiko_user_id}/contacts.json?auth=${state.qiko_token}`;
         const contactsRes = await fetch(contactsUrl);
         let contactsList = [];
         if (contactsRes.ok) {
@@ -1321,12 +1380,12 @@ async function initDashboardScreen() {
 
   async function lookupProfileByQikoId(qikoId) {
     try {
-      const idRes = await fetch(`${CONFIG.FIREBASE_DB_URL}/qiko_ids/${qikoId}.json`);
+      const idRes = await fetch(`${CONFIG.FIREBASE_DB_URL}/qiko_ids/${qikoId}.json?auth=${state.qiko_token}`);
       if (!idRes.ok) return null;
       const uid = await idRes.json();
       if (!uid) return null;
 
-      const userRes = await fetch(`${CONFIG.FIREBASE_DB_URL}/users/${uid}.json`);
+      const userRes = await fetch(`${CONFIG.FIREBASE_DB_URL}/users/${uid}.json?auth=${state.qiko_token}`);
       if (!userRes.ok) return null;
       const user = await userRes.json();
       return user;
@@ -1338,7 +1397,7 @@ async function initDashboardScreen() {
 
   async function renderContacts() {
     try {
-      const contactsUrl = `${CONFIG.FIREBASE_DB_URL}/users/${state.qiko_user_id}/contacts.json`;
+      const contactsUrl = `${CONFIG.FIREBASE_DB_URL}/users/${state.qiko_user_id}/contacts.json?auth=${state.qiko_token}`;
       const res = await fetch(contactsUrl);
       if (!res.ok) throw new Error("Failed to load contacts.");
       const contacts = await res.json() || [];
@@ -1539,7 +1598,7 @@ async function initDashboardScreen() {
       await storage.set({ [historyKey]: history });
       renderChatLog(history);
 
-      const lookupUrl = `${CONFIG.FIREBASE_DB_URL}/qiko_ids/${partnerId}.json`;
+      const lookupUrl = `${CONFIG.FIREBASE_DB_URL}/qiko_ids/${partnerId}.json?auth=${state.qiko_token}`;
       const lookupRes = await fetch(lookupUrl);
       if (!lookupRes.ok) throw new Error("Database lookup failed.");
       const recipientUid = await lookupRes.json();
