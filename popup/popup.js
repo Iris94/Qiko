@@ -734,8 +734,12 @@ async function initLoginsScreen() {
         tempRegisterPassword = password;
         tempRegisterUsername = username;
 
-        // Both create and upgrade flows link the email/password to the existing anonymous user
-        const sessionAuth = await firebaseLinkEmail(tempToken, email, password);
+        let sessionAuth;
+        if (flow === 'upgrade') {
+          sessionAuth = await firebaseLinkEmail(tempToken, email, password);
+        } else {
+          sessionAuth = await firebaseSignUpWithEmail(email, password);
+        }
 
         tempUid = sessionAuth.uid;
         tempToken = sessionAuth.idToken;
@@ -780,6 +784,12 @@ async function initLoginsScreen() {
           await firebaseUnlinkEmail(tempToken);
         } catch (err) {
           console.error("Failed to unlink email on verification cancel:", err);
+        }
+      } else {
+        try {
+          await firebaseDeleteAccount(tempToken);
+        } catch (err) {
+          console.error("Failed to delete temp account on verification cancel:", err);
         }
       }
       await storage.remove('qiko_pending_verification');
