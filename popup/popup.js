@@ -851,7 +851,7 @@ async function initLoginsScreen() {
           throw new Error("Your email address is not verified yet. Please check your inbox and click the verification link.");
         }
 
-        await saveIdentityToFirebase(tempGeneratedId, tempUid, tempRegisterEmail, tempRegisterUsername);
+        await saveIdentityToFirebase(tempGeneratedId, tempUid, tempRegisterEmail, tempRegisterUsername, tempToken);
 
         const sessionState = {
           qiko_user_id: tempUid,
@@ -878,6 +878,8 @@ async function initLoginsScreen() {
       }
     });
   }
+
+
 
   const btnBackToStart = document.getElementById('btn-back-to-start');
   if (btnBackToStart) {
@@ -1260,6 +1262,10 @@ function initConnectTab(state) {
           contactsList = list || [];
         }
 
+        if (contactsList.length >= 5) {
+          throw new Error("You can only have a maximum of 5 contacts currently. Please remove an existing connection first.");
+        }
+
         if (contactsList.includes(targetId)) {
           throw new Error(`Qiko ID ${targetId} is already in your contacts.`);
         }
@@ -1452,58 +1458,34 @@ async function initDashboardScreen() {
             itemContainer.classList.add('active');
           }
 
-          const circle = document.createElement('div');
+          const chip = document.createElement('div');
           const colorClass = `circle-pastel-${(index % 5) + 1}`;
-          circle.className = `chat-circle ${colorClass}`;
+          chip.className = `chat-chip ${colorClass}`;
 
           const indicator = document.createElement('span');
           indicator.className = 'online-indicator';
-          circle.appendChild(indicator);
+          chip.appendChild(indicator);
 
-          const nameLabel = document.createElement('span');
-          nameLabel.className = 'chat-contact-name';
-
-          let initial = 'C';
           let displayName = contactId;
-          if (contactId.startsWith('qx-')) {
-            const parts = contactId.split('-');
-            if (parts.length > 1 && parts[1]) {
-              initial = parts[1][0].toUpperCase();
-              displayName = contactId.slice(0, 12);
-            }
-          } else {
-            initial = contactId[0].toUpperCase();
-            displayName = contactId.slice(0, 12);
+          if (displayName.length > 12) {
+            displayName = displayName.slice(0, 12) + '...';
           }
 
-          const initialText = document.createTextNode(initial);
-          circle.appendChild(initialText);
-          nameLabel.textContent = displayName;
+          const nameTextNode = document.createTextNode(displayName);
+          chip.appendChild(nameTextNode);
 
-          itemContainer.appendChild(circle);
-          itemContainer.appendChild(nameLabel);
+          itemContainer.appendChild(chip);
 
           lookupProfileByQikoId(contactId).then(profile => {
             if (profile) {
               const nameToUse = profile.username && profile.username !== 'Guest' ? profile.username : contactId;
-              let finalInitial = 'C';
-              if (nameToUse.startsWith('qx-')) {
-                const parts = nameToUse.split('-');
-                if (parts.length > 1 && parts[1]) {
-                  finalInitial = parts[1][0].toUpperCase();
-                }
-              } else {
-                finalInitial = nameToUse[0].toUpperCase();
-              }
-              if (circle.childNodes.length > 1) {
-                circle.childNodes[1].textContent = finalInitial;
-              }
-
               let labelName = nameToUse;
               if (labelName.length > 12) {
                 labelName = labelName.slice(0, 12) + '...';
               }
-              nameLabel.textContent = labelName;
+              if (chip.childNodes.length > 1) {
+                chip.childNodes[1].textContent = labelName;
+              }
 
               const lastSeen = profile.last_seen || 0;
               const isOnline = (Date.now() - lastSeen) < 120000;
@@ -1527,7 +1509,10 @@ async function initDashboardScreen() {
             await storage.set({ qiko_active_partner: contactId });
 
             if (chatPartnerName) {
-              const currentLabelText = nameLabel.textContent;
+              let currentLabelText = contactId;
+              if (chip.childNodes.length > 1) {
+                currentLabelText = chip.childNodes[1].textContent;
+              }
               chatPartnerName.textContent = `— ${currentLabelText} —`;
             }
 
@@ -1550,7 +1535,38 @@ async function initDashboardScreen() {
     }
   }
 
-  await renderContacts();
+  async function selectPartner(partnerId) {
+    state.qiko_active_partner = partnerId;
+    if (btnNavHome && sceneHome) {
+      switchScene(btnNavHome, sceneHome);
+    }
+    await renderContacts();
+
+    if (chatEmptyState) chatEmptyState.classList.add('hide');
+    if (chatMainSection) chatMainSection.classList.remove('hide');
+
+    if (chatPartnerName) {
+      chatPartnerName.textContent = `— ${partnerId} —`;
+      lookupProfileByQikoId(partnerId).then(profile => {
+        if (profile) {
+          const nameToUse = profile.username && profile.username !== 'Guest' ? profile.username : partnerId;
+          chatPartnerName.textContent = `— ${nameToUse} —`;
+        }
+      });
+    }
+
+    const historyKey = `qiko_history_${partnerId}`;
+    const historyData = await storage.get(historyKey);
+    const history = historyData[historyKey] || [];
+    renderChatLog(history);
+  }
+
+  const activePartnerRes = await storage.get('qiko_active_partner');
+  if (activePartnerRes.qiko_active_partner) {
+    await selectPartner(activePartnerRes.qiko_active_partner);
+  } else {
+    await renderContacts();
+  }
 
   if (btnNavHome) {
     btnNavHome.addEventListener('click', async () => {
@@ -1559,7 +1575,7 @@ async function initDashboardScreen() {
     });
   }
 
-  chrome.storage.onChanged.addListener((changes) => {
+  chrome.storage.onChanged.addListener(async (changes) => {
     if (changes.qiko_user_id && !changes.qiko_user_id.newValue) {
       window.location.href = "../index.html";
       return;
@@ -1571,7 +1587,10 @@ async function initDashboardScreen() {
       state.qiko_refresh_token = changes.qiko_refresh_token.newValue;
     }
     if (changes.qiko_contacts_updated) {
-      renderContacts();
+      await renderContacts();
+    }
+    if (changes.qiko_active_partner && changes.qiko_active_partner.newValue) {
+      await selectPartner(changes.qiko_active_partner.newValue);
     }
 
     const activePartner = state.qiko_active_partner;
@@ -1586,6 +1605,59 @@ async function initDashboardScreen() {
   window.addEventListener('unload', () => {
     storage.remove('qiko_active_partner');
   });
+
+  const btnRemoveConn = document.getElementById('btn-remove-connection');
+  if (btnRemoveConn) {
+    btnRemoveConn.addEventListener('click', async () => {
+      const partnerId = state.qiko_active_partner;
+      if (!partnerId) return;
+
+      const confirmed = await showCustomConfirm(`Are you sure you want to remove the connection with ${partnerId}?`);
+      if (!confirmed) return;
+
+      btnRemoveConn.disabled = true;
+      btnRemoveConn.textContent = 'Removing...';
+
+      try {
+        const contactsUrl = `${CONFIG.FIREBASE_DB_URL}/users/${state.qiko_user_id}/contacts.json?auth=${state.qiko_token}`;
+        const contactsRes = await fetch(contactsUrl);
+        if (!contactsRes.ok) throw new Error("Failed to load contacts list.");
+        
+        const list = await contactsRes.json() || [];
+        const newList = list.filter(id => id !== partnerId);
+
+        const updateRes = await fetch(contactsUrl, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newList)
+        });
+        if (!updateRes.ok) throw new Error("Failed to update contacts database.");
+
+        // Clear active partner
+        state.qiko_active_partner = null;
+        await storage.remove('qiko_active_partner');
+
+        // Hide chat main section, show empty state
+        if (chatMainSection) chatMainSection.classList.add('hide');
+        if (chatEmptyState) {
+          chatEmptyState.classList.remove('hide');
+          const emptyTitle = chatEmptyState.querySelector('.empty-title');
+          const emptySubtitle = chatEmptyState.querySelector('.empty-subtitle');
+          if (emptyTitle) emptyTitle.textContent = "Choose Connection";
+          if (emptySubtitle) emptySubtitle.textContent = "Select a contact from the bar above to start direct messaging.";
+        }
+
+        await renderContacts();
+        await showCustomAlert(`Successfully removed ${partnerId} from contacts.`);
+      } catch (err) {
+        console.error("Failed to remove connection:", err);
+        await showCustomAlert(err.message || "Failed to remove connection.");
+      } finally {
+        btnRemoveConn.disabled = false;
+        btnRemoveConn.textContent = 'Remove';
+      }
+    });
+  }
 
   const btnSend = document.getElementById('btn-send-message');
   const inputMessage = document.getElementById('chat-message-input');

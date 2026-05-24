@@ -276,7 +276,7 @@ async function processIncomingMessage(msgId, message, uid, token) {
         console.error("Failed to fetch sender profile for notification:", e);
       }
 
-      const safeId = `qiko_notif_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      const safeId = `qiko_notif_${senderId}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
       chrome.notifications.create(safeId, {
         type: 'basic',
         iconUrl: 'icons/logo-128.png',
@@ -316,15 +316,33 @@ chrome.storage.onChanged.addListener((changes) => {
   }
 });
 
-chrome.notifications.onClicked.addListener(() => {
-  chrome.tabs.query({ url: chrome.runtime.getURL("screens/dashboard.html") }, (tabs) => {
-    if (tabs && tabs.length > 0) {
-      chrome.tabs.update(tabs[0].id, { active: true });
-      chrome.windows.update(tabs[0].windowId, { focused: true });
-    } else {
-      chrome.tabs.create({ url: "screens/dashboard.html" });
+chrome.notifications.onClicked.addListener((notificationId) => {
+  let senderId = null;
+  if (notificationId && notificationId.startsWith("qiko_notif_")) {
+    const parts = notificationId.split("_");
+    if (parts.length >= 3) {
+      senderId = parts[2];
     }
-  });
+  }
+
+  const openDashboard = () => {
+    chrome.tabs.query({ url: chrome.runtime.getURL("screens/dashboard.html") }, (tabs) => {
+      if (tabs && tabs.length > 0) {
+        chrome.tabs.update(tabs[0].id, { active: true });
+        chrome.windows.update(tabs[0].windowId, { focused: true });
+      } else {
+        chrome.tabs.create({ url: "screens/dashboard.html" });
+      }
+    });
+  };
+
+  if (senderId) {
+    chrome.storage.local.set({ qiko_active_partner: senderId }, () => {
+      openDashboard();
+    });
+  } else {
+    openDashboard();
+  }
 });
 
 chrome.runtime.onConnect.addListener((port) => {
