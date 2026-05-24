@@ -600,17 +600,28 @@ body {
 .active-chats-bar {
     width: 100%;
     margin-bottom: 12px;
-    padding: 2px 0;
+    padding: 8px 0;
 }
 
 .active-chats-scroll {
     display: flex;
-    gap: 12px;
+    gap: 16px;
     justify-content: flex-start;
     width: 100%;
+    overflow-x: auto;
+    padding-top: 6px;
+    padding-bottom: 8px;
+}
+.active-chats-scroll::-webkit-scrollbar {
+    height: 4px;
+}
+.active-chats-scroll::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 2px;
 }
 
 .chat-circle {
+    position: relative;
     width: 32px;
     height: 32px;
     border-radius: 50%;
@@ -621,16 +632,8 @@ body {
     font-size: 13px;
     color: #2e3440;
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
     user-select: none;
-}
-
-.chat-circle:hover {
-    transform: scale(1.08);
-}
-
-.chat-circle.active {
-    box-shadow: 0 0 0 2px var(--color-primary);
+    box-sizing: border-box;
 }
 
 .circle-pastel-1 { background-color: #e3f2fd; }
@@ -718,19 +721,31 @@ body {
     gap: 8px;
     align-items: center;
     border-top: 1px solid var(--color-border);
-    padding-top: 6px;
+    padding-top: 8px;
+    padding-bottom: 4px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .chat-input-field {
     flex: 1;
-    height: 30px;
+    height: 36px;
+    min-height: 36px;
+    max-height: 80px;
     border: 1px solid var(--color-border);
-    border-radius: 6px;
-    padding: 0 10px;
+    border-radius: 8px;
+    padding: 8px 12px;
     font-size: 12px;
     outline: none;
     background-color: var(--color-bg);
     color: var(--color-text);
+    resize: none;
+    overflow-y: auto;
+    font-family: inherit;
+    box-sizing: border-box;
+    line-height: 18px;
+    margin: 0;
+    vertical-align: middle;
 }
 
 .chat-input-field:focus {
@@ -745,9 +760,13 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 4px;
+    padding: 8px;
     border-radius: 6px;
     transition: background-color 0.2s;
+    height: 36px;
+    width: 36px;
+    box-sizing: border-box;
+    margin: 0;
 }
 
 .btn-send-svg:hover {
@@ -928,4 +947,125 @@ body {
     color: var(--color-muted-text);
     max-width: 280px;
     line-height: 1.5;
+}
+
+.chat-contact-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    gap: 4px;
+    width: 60px;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+.chat-contact-item:hover {
+    transform: scale(1.05);
+}
+.chat-contact-item.active .chat-circle {
+    box-shadow: 0 0 0 2px var(--color-primary);
+}
+.chat-contact-name {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-muted-text);
+    max-width: 58px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+}
+.chat-contact-item.active .chat-contact-name {
+    color: var(--color-primary);
+}
+.online-indicator {
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1.5px solid var(--color-surface);
+    background-color: #4c566a;
+    transition: background-color 0.2s;
+}
+.online-indicator.online {
+    background-color: #a3be8c;
+}
+
+.qiko-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(46, 52, 64, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease-out;
+}
+.qiko-modal-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+.qiko-modal-box {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    width: 85%;
+    max-width: 290px;
+    box-shadow: var(--shadow-sm);
+    transform: translateY(20px);
+    transition: transform 0.2s ease-out;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.qiko-modal-overlay.show .qiko-modal-box {
+    transform: translateY(0);
+}
+.qiko-modal-message {
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--color-text);
+    margin: 0;
+    text-align: center;
+}
+.qiko-modal-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    width: 100%;
+}
+.qiko-modal-btn {
+    flex: 1;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, filter 0.2s;
+    outline: none;
+}
+.qiko-modal-btn:hover {
+    filter: brightness(1.08);
+}
+.qiko-modal-btn-primary {
+    background-color: var(--color-primary);
+    color: #2e3440;
+}
+[data-theme="light"] .qiko-modal-btn-primary,
+:root:not([data-theme="dark"]) .qiko-modal-btn-primary {
+    color: var(--color-white);
+}
+.qiko-modal-btn-secondary {
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
 }

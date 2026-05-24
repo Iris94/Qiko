@@ -6,6 +6,7 @@ let tempRegisterPassword = '';
 let tempRegisterUsername = '';
 let tempUid = null;
 let tempToken = null;
+let tempRefreshToken = null;
 
 const storage = {
   get: async (keys) => {
@@ -55,6 +56,96 @@ const storage = {
     }
   }
 };
+
+function showCustomAlert(message) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'qiko-modal-overlay';
+    
+    const box = document.createElement('div');
+    box.className = 'qiko-modal-box';
+    
+    const msgEl = document.createElement('p');
+    msgEl.className = 'qiko-modal-message';
+    msgEl.textContent = message;
+    
+    const btnGroup = document.createElement('div');
+    btnGroup.className = 'qiko-modal-buttons';
+    
+    const btnOk = document.createElement('button');
+    btnOk.type = 'button';
+    btnOk.className = 'qiko-modal-btn qiko-modal-btn-primary';
+    btnOk.textContent = 'OK';
+    
+    btnOk.onclick = () => {
+      overlay.classList.remove('show');
+      setTimeout(() => {
+        overlay.remove();
+        resolve();
+      }, 200);
+    };
+    
+    btnGroup.appendChild(btnOk);
+    box.appendChild(msgEl);
+    box.appendChild(btnGroup);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    
+    setTimeout(() => overlay.classList.add('show'), 10);
+  });
+}
+
+function showCustomConfirm(message) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'qiko-modal-overlay';
+    
+    const box = document.createElement('div');
+    box.className = 'qiko-modal-box';
+    
+    const msgEl = document.createElement('p');
+    msgEl.className = 'qiko-modal-message';
+    msgEl.textContent = message;
+    
+    const btnGroup = document.createElement('div');
+    btnGroup.className = 'qiko-modal-buttons';
+    
+    const btnCancel = document.createElement('button');
+    btnCancel.type = 'button';
+    btnCancel.className = 'qiko-modal-btn qiko-modal-btn-secondary';
+    btnCancel.textContent = 'Cancel';
+    
+    const btnConfirm = document.createElement('button');
+    btnConfirm.type = 'button';
+    btnConfirm.className = 'qiko-modal-btn qiko-modal-btn-primary';
+    btnConfirm.textContent = 'Confirm';
+    
+    btnCancel.onclick = () => {
+      overlay.classList.remove('show');
+      setTimeout(() => {
+        overlay.remove();
+        resolve(false);
+      }, 200);
+    };
+    
+    btnConfirm.onclick = () => {
+      overlay.classList.remove('show');
+      setTimeout(() => {
+        overlay.remove();
+        resolve(true);
+      }, 200);
+    };
+    
+    btnGroup.appendChild(btnCancel);
+    btnGroup.appendChild(btnConfirm);
+    box.appendChild(msgEl);
+    box.appendChild(btnGroup);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    
+    setTimeout(() => overlay.classList.add('show'), 10);
+  });
+}
 
 async function hashSHA256(str) {
   const encoder = new TextEncoder();
@@ -199,7 +290,8 @@ async function firebaseSignInAnonymously() {
   const data = await response.json();
   return {
     uid: data.localId,
-    idToken: data.idToken
+    idToken: data.idToken,
+    refreshToken: data.refreshToken
   };
 }
 
@@ -221,7 +313,8 @@ async function firebaseSignUpWithEmail(email, password) {
   const data = await response.json();
   return {
     uid: data.localId,
-    idToken: data.idToken
+    idToken: data.idToken,
+    refreshToken: data.refreshToken
   };
 }
 
@@ -244,7 +337,8 @@ async function firebaseLinkEmail(idToken, email, password) {
   const data = await response.json();
   return {
     uid: data.localId,
-    idToken: data.idToken
+    idToken: data.idToken,
+    refreshToken: data.refreshToken
   };
 }
 
@@ -301,7 +395,8 @@ async function firebaseSignInWithEmail(email, password) {
   const data = await response.json();
   return {
     uid: data.localId,
-    idToken: data.idToken
+    idToken: data.idToken,
+    refreshToken: data.refreshToken
   };
 }
 
@@ -476,6 +571,7 @@ async function initLoginsScreen() {
     tempGeneratedId = data.qiko_id;
     tempUid = data.uid;
     tempToken = data.token;
+    tempRefreshToken = data.refreshToken;
     tempRegisterEmail = data.email;
     tempRegisterUsername = data.username;
 
@@ -504,7 +600,7 @@ async function initLoginsScreen() {
       showSubScreen('screen-profile-setup');
     } catch (err) {
       console.error("Failed to generate ID:", err);
-      alert("Failed to initialize Qiko ID. Check database connection rules.");
+      await showCustomAlert("Failed to initialize Qiko ID. Check database connection rules.");
       window.location.href = "../index.html";
     }
   } else if (flow === 'signin') {
@@ -573,13 +669,14 @@ async function initLoginsScreen() {
           qiko_username: 'Guest',
           qiko_registered: false,
           qiko_id: tempGeneratedId,
-          qiko_token: anonymousSession.idToken
+          qiko_token: anonymousSession.idToken,
+          qiko_refresh_token: anonymousSession.refreshToken
         };
         await storage.set(guestState);
         window.location.href = "dashboard.html";
       } catch (err) {
         console.error("Anonymous sign in failed:", err);
-        alert("Failed to initialize Guest session. Try again.");
+        await showCustomAlert("Failed to initialize Guest session. Try again.");
         btnSetupSkip.disabled = false;
         btnSetupSkip.textContent = 'Continue without registering';
       }
@@ -625,11 +722,13 @@ async function initLoginsScreen() {
 
         tempUid = sessionAuth.uid;
         tempToken = sessionAuth.idToken;
+        tempRefreshToken = sessionAuth.refreshToken;
 
         const pendingData = {
           flow: flow === 'upgrade' ? 'upgrade' : 'create',
           uid: tempUid,
           token: tempToken,
+          refreshToken: tempRefreshToken,
           email: tempRegisterEmail,
           username: tempRegisterUsername,
           qiko_id: tempGeneratedId
@@ -677,9 +776,9 @@ async function initLoginsScreen() {
       btnResend.textContent = 'Sending...';
       try {
         await firebaseSendEmailVerification(tempToken);
-        alert("Verification link resent! Please check your email inbox.");
+        await showCustomAlert("Verification link resent! Please check your email inbox.");
       } catch (err) {
-        alert(err.message || "Failed to resend. Please try again shortly.");
+        await showCustomAlert(err.message || "Failed to resend. Please try again shortly.");
       } finally {
         btnResend.disabled = false;
         btnResend.textContent = 'Resend verification email';
@@ -715,7 +814,8 @@ async function initLoginsScreen() {
           qiko_username: tempRegisterUsername || 'Guest',
           qiko_registered: true,
           qiko_id: tempGeneratedId,
-          qiko_token: tempToken
+          qiko_token: tempToken,
+          qiko_refresh_token: tempRefreshToken
         };
         await storage.set(sessionState);
 
@@ -787,7 +887,8 @@ async function initLoginsScreen() {
           qiko_username: profile.username || 'Guest',
           qiko_registered: true,
           qiko_id: profile.qiko_id,
-          qiko_token: sessionAuth.idToken
+          qiko_token: sessionAuth.idToken,
+          qiko_refresh_token: sessionAuth.refreshToken
         };
 
         await storage.set(signInState);
@@ -953,8 +1054,18 @@ function initProfileTab(state) {
   const btnSignOut = document.getElementById('btn-profile-signout');
   if (btnSignOut) {
     btnSignOut.onclick = async () => {
-      const confirmSignOut = confirm("Would you like to sign out? This will clear local configuration.");
+      const confirmSignOut = await showCustomConfirm("Would you like to sign out? This will clear local configuration.");
       if (confirmSignOut) {
+        try {
+          const url = `${CONFIG.FIREBASE_DB_URL}/users/${state.qiko_user_id}/last_seen.json?auth=${state.qiko_token}`;
+          await fetch(url, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: "0"
+          });
+        } catch (e) {
+          console.error(e);
+        }
         await storage.clear();
         window.location.href = "../index.html";
       }
@@ -964,7 +1075,7 @@ function initProfileTab(state) {
   const btnDelete = document.getElementById('btn-profile-delete');
   if (btnDelete) {
     btnDelete.onclick = async () => {
-      const confirmDelete = confirm("Are you sure you want to permanently delete your Qiko profile and database records? This action is irreversible.");
+      const confirmDelete = await showCustomConfirm("Are you sure you want to permanently delete your Qiko profile and database records? This action is irreversible.");
       if (confirmDelete) {
         btnDelete.disabled = true;
         btnDelete.textContent = 'Deleting...';
@@ -987,12 +1098,12 @@ function initProfileTab(state) {
           }
 
           await storage.clear();
-          alert("Your Qiko profile has been permanently deleted.");
+          await showCustomAlert("Your Qiko profile has been permanently deleted.");
           window.location.href = "../index.html";
 
         } catch (err) {
           console.error("Failed to delete account:", err);
-          alert(`Failed to delete profile completely: ${err.message}`);
+          await showCustomAlert(`Failed to delete profile completely: ${err.message}`);
           btnDelete.disabled = false;
           btnDelete.textContent = 'Delete Profile';
         }
@@ -1083,7 +1194,7 @@ function initConnectTab(state) {
         if (!updateRes.ok) throw new Error("Failed to update contacts database.");
 
         inputEl.value = '';
-        alert(`Successfully added ${targetId} to your contacts!`);
+        await showCustomAlert(`Successfully added ${targetId} to your contacts!`);
 
       } catch (err) {
         console.error("Failed to add connection:", err);
@@ -1100,7 +1211,7 @@ function initConnectTab(state) {
 }
 
 async function initDashboardScreen() {
-  const state = await storage.get(['qiko_user_id', 'qiko_email', 'qiko_username', 'qiko_id', 'qiko_registered', 'qiko_token']);
+  const state = await storage.get(['qiko_user_id', 'qiko_email', 'qiko_username', 'qiko_id', 'qiko_registered', 'qiko_token', 'qiko_refresh_token']);
   if (!state.qiko_user_id) {
     window.location.href = "../index.html";
     return;
@@ -1208,6 +1319,23 @@ async function initDashboardScreen() {
     chatLog.scrollTop = chatLog.scrollHeight;
   }
 
+  async function lookupProfileByQikoId(qikoId) {
+    try {
+      const idRes = await fetch(`${CONFIG.FIREBASE_DB_URL}/qiko_ids/${qikoId}.json`);
+      if (!idRes.ok) return null;
+      const uid = await idRes.json();
+      if (!uid) return null;
+
+      const userRes = await fetch(`${CONFIG.FIREBASE_DB_URL}/users/${uid}.json`);
+      if (!userRes.ok) return null;
+      const user = await userRes.json();
+      return user;
+    } catch (err) {
+      console.error("Failed to lookup profile for Qiko ID:", qikoId, err);
+      return null;
+    }
+  }
+
   async function renderContacts() {
     try {
       const contactsUrl = `${CONFIG.FIREBASE_DB_URL}/users/${state.qiko_user_id}/contacts.json`;
@@ -1238,32 +1366,89 @@ async function initDashboardScreen() {
         }
 
         contacts.forEach((contactId, index) => {
+          const itemContainer = document.createElement('div');
+          itemContainer.className = 'chat-contact-item';
+          if (state.qiko_active_partner === contactId) {
+            itemContainer.classList.add('active');
+          }
+
           const circle = document.createElement('div');
           const colorClass = `circle-pastel-${(index % 5) + 1}`;
           circle.className = `chat-circle ${colorClass}`;
-          circle.setAttribute('data-username', contactId);
-          
+
+          const indicator = document.createElement('span');
+          indicator.className = 'online-indicator';
+          circle.appendChild(indicator);
+
+          const nameLabel = document.createElement('span');
+          nameLabel.className = 'chat-contact-name';
+
           let initial = 'C';
+          let displayName = contactId;
           if (contactId.startsWith('qx-')) {
             const parts = contactId.split('-');
             if (parts.length > 1 && parts[1]) {
               initial = parts[1][0].toUpperCase();
+              displayName = contactId.slice(0, 12);
             }
           } else {
             initial = contactId[0].toUpperCase();
+            displayName = contactId.slice(0, 12);
           }
-          circle.textContent = initial;
 
-          circle.addEventListener('click', async () => {
-            document.querySelectorAll('.chat-circle').forEach(c => c.classList.remove('active'));
-            circle.classList.add('active');
+          const initialText = document.createTextNode(initial);
+          circle.appendChild(initialText);
+          nameLabel.textContent = displayName;
+
+          itemContainer.appendChild(circle);
+          itemContainer.appendChild(nameLabel);
+
+          lookupProfileByQikoId(contactId).then(profile => {
+            if (profile) {
+              const nameToUse = profile.username && profile.username !== 'Guest' ? profile.username : contactId;
+              let finalInitial = 'C';
+              if (nameToUse.startsWith('qx-')) {
+                const parts = nameToUse.split('-');
+                if (parts.length > 1 && parts[1]) {
+                  finalInitial = parts[1][0].toUpperCase();
+                }
+              } else {
+                finalInitial = nameToUse[0].toUpperCase();
+              }
+              if (circle.childNodes.length > 1) {
+                circle.childNodes[1].textContent = finalInitial;
+              }
+
+              let labelName = nameToUse;
+              if (labelName.length > 12) {
+                labelName = labelName.slice(0, 12) + '...';
+              }
+              nameLabel.textContent = labelName;
+
+              const lastSeen = profile.last_seen || 0;
+              const isOnline = (Date.now() - lastSeen) < 120000;
+              if (isOnline) {
+                indicator.classList.add('online');
+              } else {
+                indicator.classList.remove('online');
+              }
+
+              if (state.qiko_active_partner === contactId && chatPartnerName) {
+                chatPartnerName.textContent = `— ${nameToUse} —`;
+              }
+            }
+          }).catch(err => console.error("Error looking up contact profile:", err));
+
+          itemContainer.addEventListener('click', async () => {
+            document.querySelectorAll('.chat-contact-item').forEach(c => c.classList.remove('active'));
+            itemContainer.classList.add('active');
 
             state.qiko_active_partner = contactId;
             await storage.set({ qiko_active_partner: contactId });
 
             if (chatPartnerName) {
-              const shortened = contactId.length > 20 ? contactId.slice(0, 20) + '...' : contactId;
-              chatPartnerName.textContent = `— ${shortened} —`;
+              const currentLabelText = nameLabel.textContent;
+              chatPartnerName.textContent = `— ${currentLabelText} —`;
             }
 
             if (chatEmptyState) chatEmptyState.classList.add('hide');
@@ -1276,7 +1461,7 @@ async function initDashboardScreen() {
           });
 
           if (activeChatsList) {
-            activeChatsList.appendChild(circle);
+            activeChatsList.appendChild(itemContainer);
           }
         });
       }
@@ -1295,12 +1480,26 @@ async function initDashboardScreen() {
   }
 
   chrome.storage.onChanged.addListener((changes) => {
-    const activePartner = state.qiko_active_partner;
-    if (!activePartner) return;
+    if (changes.qiko_user_id && !changes.qiko_user_id.newValue) {
+      window.location.href = "../index.html";
+      return;
+    }
+    if (changes.qiko_token) {
+      state.qiko_token = changes.qiko_token.newValue;
+    }
+    if (changes.qiko_refresh_token) {
+      state.qiko_refresh_token = changes.qiko_refresh_token.newValue;
+    }
+    if (changes.qiko_contacts_updated) {
+      renderContacts();
+    }
 
-    const historyKey = `qiko_history_${activePartner}`;
-    if (changes[historyKey]) {
-      renderChatLog(changes[historyKey].newValue || []);
+    const activePartner = state.qiko_active_partner;
+    if (activePartner) {
+      const historyKey = `qiko_history_${activePartner}`;
+      if (changes[historyKey]) {
+        renderChatLog(changes[historyKey].newValue || []);
+      }
     }
   });
 
@@ -1334,6 +1533,9 @@ async function initDashboardScreen() {
         timestamp: timestamp,
         received: false
       });
+      if (history.length > 100) {
+        history.shift();
+      }
       await storage.set({ [historyKey]: history });
       renderChatLog(history);
 
@@ -1367,6 +1569,9 @@ async function initDashboardScreen() {
         timestamp: Date.now(),
         received: true
       });
+      if (history.length > 100) {
+        history.shift();
+      }
       await storage.set({ [historyKey]: history });
       renderChatLog(history);
     }
@@ -1376,8 +1581,9 @@ async function initDashboardScreen() {
     btnSend.addEventListener('click', sendMessageFunc);
   }
   if (inputMessage) {
-    inputMessage.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
+    inputMessage.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
         sendMessageFunc();
       }
     });
@@ -1385,6 +1591,9 @@ async function initDashboardScreen() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.connect) {
+    chrome.runtime.connect({ name: "qiko_popup" });
+  }
   await initThemeSwitcher();
   injectFooters();
   updateConnectionStatus();
