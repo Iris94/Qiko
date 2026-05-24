@@ -779,7 +779,18 @@ async function initLoginsScreen() {
   const btnVerifyBack = document.getElementById('btn-verification-back');
   if (btnVerifyBack) {
     btnVerifyBack.addEventListener('click', async () => {
-      if (data && data.flow === 'upgrade') {
+      const pending = await storage.get('qiko_pending_verification');
+      let verifyFlow = 'create';
+      if (pending.qiko_pending_verification) {
+        try {
+          const parsed = JSON.parse(pending.qiko_pending_verification);
+          verifyFlow = parsed.flow;
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      if (verifyFlow === 'upgrade') {
         try {
           await firebaseUnlinkEmail(tempToken);
         } catch (err) {
