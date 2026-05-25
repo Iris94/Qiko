@@ -1,96 +1,99 @@
-# Qiko Chat - Kompletan Vodič kroz Arhitekturu, Logiku i Integraciju
+# Qiko Chat - Architecture, Logic, and Integration Guide
 
-Ovaj dokument detaljno opisuje tehničku arhitekturu, sigurnosne protokole i inženjerska rješenja implementirana u Qiko chat sistemu (kako u Chrome ekstenziji, tako i u samostalnoj web aplikaciji).
-
----
-
-## 1. Filozofija i Core koncept
-Qiko je dizajniran kao **zero-footprint peer-to-peer (P2P)** messenger za razmjenu poruka bez zadržavanja podataka na serverima.
-- **Bez trajnog skladištenja poruka na serveru**: Poruke se privremeno upisuju u bazu i odmah brišu čim ih primalac preuzme.
-- **Klijentska istorija**: Istorija ćaskanja se čuva isključivo lokalno u pretraživaču primaoca i pošiljaoca (ograničeno na zadnjih 100 poruka kako bi se spriječilo zagušenje memorije).
-- **Hibridni model**: Isti kod pokreće i Chrome ekstenziju i samostalnu web aplikaciju (`/chat` ruta).
+This document describes the technical architecture, security protocols, and engineering solutions implemented in the Qiko chat system (specifically for the Chrome extension using ES6 modules).
 
 ---
 
-## 2. P2P Signalizacija i Model Poruka (Inbox Queue)
-
-Pošto pretraživači nemaju direktan način za slanje poruka ugašenim peer-ovima bez posrednika, Qiko koristi Firebase Realtime Database (RTDB) kao ultralaku, prolaznu poštu (Queue).
-
-### Slanje poruke (`popup.js` / `dashboard.astro`)
-Kada korisnik A šalje poruku korisniku B:
-1. **Pronalaženje UID-a**: Provjerava se mapiranje Qiko ID-a korisnika B na Firebase UID preko putanje `/qiko_ids/${recipient_id}.json`.
-2. **Upis u Inbox**: Šalje se `POST` zahtjev na `/inbox/${recipient_uid}.json` sa tijelom poruke, ID-jem pošiljaoca i vremenskim pečatom.
-3. **Lokalni log**: Poruka se odmah upisuje u lokalni storage pošiljaoca pod ključem `qiko_history_${recipient_id}`.
-
-### Primanje i brisanje poruka (`background.js` / `background-adapter.js`)
-Klijent konstantno sluša dolazne događaje na svojoj putanji `/inbox/${my_uid}.json`:
-1. **SSE Stream (Server-Sent Events)**: Otvara se trajna HTTP konekcija (`Accept: text/event-stream`).
-2. **Preuzimanje i skladištenje**: Kada stigne nova poruka, klijent je dekodira, upisuje u lokalni storage pod istoriju pošiljaoca, i (opciono) prikazuje sistemsku notifikaciju ako je prozor minimiziran/zatvoren.
-3. **Brzo brisanje (Zero Footprint)**: Klijent odmah šalje `DELETE` zahtjev na `/inbox/${my_uid}/${msg_id}.json`. Poruka se briše sa Firebase servera u djeliću sekunde nakon što je isporučena.
+## 1. Philosophy and Core Concept
+Qiko is a **zero-footprint peer-to-peer (P2P)** messenger designed for direct, serverless communication without storing message data on any servers.
+- **Serverless Message Flow**: Messages are sent directly from browser to browser using WebRTC (via PeerJS). No messages are stored in any database or intermediary server.
+- **Client-Side History**: Chat history is kept strictly in local storage (`chrome.storage.local`) on the sender's and receiver's devices, capped at the last 100 messages per conversation to prevent storage bloat.
+- **Clean ES6 Architecture**: The extension is modularized into dedicated controllers and services, avoiding monolithic files and hardcoded values.
 
 ---
 
-## 3. Upravljanje Identitetom i Autentifikacija
+## 2. P2P Messaging Architecture & WebRTC (PeerJS)
 
-Qiko koristi Firebase Authentication u kombinaciji sa RTDB-om za kreiranje sigurnih, jedinstvenih identiteta.
+Since Chrome Extension service workers (`background.js`) do not support APIs like `RTCPeerConnection` or `navigator.mediaDevices` directly, Qiko utilizes the **Chrome Offscreen API** to host the WebRTC connection layer persistently in the background.
 
 ```mermaid
 graph TD
-    A[Novi korisnik] --> B[Generisanje Qiko ID-a]
-    B --> C[Anonimna Prijava na Firebase]
-    C --> D[Upis na /qiko_ids i /users]
-    D --> E[Guest Sesija Aktivna]
-    E --> F{Želi registraciju?}
-    F -->|Da| G[Povezivanje Email/Password]
-    G --> H[Slanje Verifikacionog Email-a]
-    H --> I[Verifikacija Uspješna]
-    I --> J[Prebacivanje u Registered Status]
-    F -->|Ne| K[Nastavlja kao Guest]
+    A[Extension Popup] <-->|chrome.runtime Messages| B[Background Service Worker]
+    B <-->|chrome.runtime Messages| C[Offscreen Document]
+    C <-->|WebRTC Connection| D[PeerJS Signaling Server]
+    C <-->|Direct WebRTC P2P Data Channel| E[Remote Friend's Browser]
 ```
 
-### Anonimna prijava (Guest)
-Čim korisnik uđe u proces generisanja Qiko ID-a, sistem ga anonimno prijavljuje na Firebase Auth. Ovo omogućava da klijent dobije validan sigurnosni token (`idToken`) *prije* bilo kakvog upisa u bazu, čime se poštuju stroga sigurnosna pravila baze podataka (`auth != null`).
-
-### Upgrade na Email/Lozinku
-Kada anonimni korisnik odluči da osigura svoj profil:
-1. Unosi Email, Lozinku i Korisničko ime.
-2. Poziva se `firebaseLinkEmail` koji povezuje email kredencijale sa postojećim anonimnim nalogom (zadržavajući isti Qiko ID i istoriju).
-3. Šalje se verifikacioni email. Korisnik se preusmjerava na ekran za verifikaciju.
-
-### Cancel i Unlink Logika
-Ako korisnik odustane na ekranu za verifikaciju i klikne "Nazad":
-- Poziva se `firebaseUnlinkEmail` da se email odveže od anonimnog naloga. Ovo sprečava da email ostane blokiran ili u polu-povezanom stanju, omogućavajući korisniku da se bez greške registruje ponovo sa istim emailom.
+### Flow of Message Exchange:
+1. **Target Lookup**: When user A initiates a connection to user B, the system queries the Firebase Realtime Database at `/qiko_ids/${recipient_id}.json` to retrieve user B's Peer ID (which is mapped to their Firebase UID).
+2. **Offscreen Bridge**: The Popup sends a message to `background.js`, which forwards it to the active Offscreen document (`offscreen.html`/`offscreen.js`).
+3. **P2P Connection**: The Offscreen document establishes a direct WebRTC Data Connection (`PeerJS`) to the recipient.
+4. **Data Transmission**: Messages are transmitted directly over the secure P2P data channel. Once received, the Offscreen document:
+   - Updates `chrome.storage.local` with the new message in the conversation history log.
+   - Dispatches a message back to the Popup (if open) to update the chat UI in real-time.
+   - Dispatches a notification request to the Background script to display a toast or fallback notification to the user.
 
 ---
 
-## 4. Prisustvo (Presence) i Statusi
+## 3. Identity Management and Authentication
 
-Prisustvo korisnika (Online/Offline) se prati dinamički pomoću vremenskih pečata.
-- **Heartbeat petlja**: Svakih 30 sekundi (ili 60 sekundi u ekstenziji), pozadinski proces šalje `PUT` zahtjev sa trenutnim `Date.now()` na `/users/${uid}/last_seen.json`.
-- **Provjera statusa**: Kada klijent renderuje kontakte, povlači njihove `last_seen` vrijednosti. Ako je razlika između trenutnog vremena i `last_seen` manja od 2 minuta (120,000 ms), kontakt se prikazuje kao **Online** (zeleni indikator); u suprotnom je **Offline** (sivi indikator).
-- **Brzo odjavljivanje**: Prilikom klika na *Sign Out*, klijent eksplicitno postavlja `last_seen` na `0` u bazi, čime ga svi kontakti istog trena vide kao offline bez čekanja timeout-a.
+Qiko integrates Firebase Authentication with the Realtime Database to create secure, unique user identities.
+
+```mermaid
+graph TD
+    A[New User] --> B[Generate Qiko ID]
+    B --> C[Anonymous Firebase Sign In]
+    C --> D[Write to /qiko_ids and /users]
+    D --> E[Guest Session Active]
+    E --> F{Upgrade Profile?}
+    F -->|Yes| G[Link Email & Password]
+    G --> H[Send Verification Email]
+    H --> I[Verification Successful]
+    I --> J[Pre-registered User Activated]
+    F -->|No| K[Continue as Guest]
+```
+
+### Anonymous Login (Guest Status)
+To comply with strict security rules (`auth != null` required to write/read), Qiko automatically performs an anonymous sign-in via Firebase Auth before saving the generated Qiko ID. This yields a valid security token (`idToken`) for database write authentication.
+
+### Upgrading to Email & Password
+When a guest decides to secure their profile:
+1. They enter an email, password, and display name.
+2. The client calls `firebaseLinkEmail` to link the email credentials to the existing anonymous credentials (preserving the generated Qiko ID and message history).
+3. A verification email is sent, and the user is redirected to the verification panel.
+
+### Verification Flow & Clean Rollback (Unlinking)
+If a user cancels the registration on the verification screen:
+- The system calls `firebaseUnlinkEmail` to decouple the email from the anonymous credential. This prevents the email from becoming locked in a half-verified state, allowing the user to attempt registration again with the same email.
 
 ---
 
-## 5. Hibridni Sloj: Chrome Ekstenzija vs. Web Aplikacija
+## 4. Presence and Online Status Tracking
 
-Jedan od najvećih izazova pri portovanju Qiko ekstenzije na Web bio je nedostatak trajnog pozadinskog procesa (`background service worker`) i `chrome.storage` API-ja u običnom browseru. Riješili smo to kroz dva modula:
-
-### A) Jedinstveni Storage Helper (`storage-helper.js`)
-Ovaj modul služi kao wrapper koji simulira ponašanje ekstenzije:
-- **Fallback**: Ako `chrome.storage.local` ne postoji, podaci se upisuju u standardni `localStorage`.
-- **Mocking Događaja**: Implementira `storage.onChanged.addListener()`. Kada bilo koji dio aplikacije pozove `storage.set()`, `storage.remove()`, ili `storage.clear()`, helper ručno okida registrovane callback funkcije sa `{ oldValue, newValue }` promjenama. Ovo omogućava da 60 KB UI koda u `popup.js` radi bez ikakvih modifikacija.
-
-### B) Klijentski Background Adapter (`background-adapter.js`)
-Pošto web stranica ne može imati trajno aktivan Service Worker u pozadini dok je tab zatvoren, logika za SSE stream i ažuriranje prisustva je prebačena u klijentski adapter:
-- **Životni vijek**: Pokreće se čim se otvori `/chat/dashboard` stranica u browseru.
-- **SSE Stream**: Otvara i drži konekciju prema Firebase RTDB-u dok je tab aktivan.
-- **Token Refresh**: Ako Firebase vrati HTTP `401 Unauthorized` grešku za stream, adapter automatski šalje zahtjev na Google Secure Token API, osvježava `idToken` koristeći `refresh_token`, spašava ga u storage (što automatski ažurira UI) i ponovo pokreće stream bez prekidanja korisničkog iskustva.
+User presence (Online/Offline status) is tracked dynamically using active heartbeats and timestamps in the Firebase Realtime Database.
+- **Heartbeat Ping**: A background task pings the database every 60 seconds by updating the user's `last_seen` timestamp (`/users/${uid}/last_seen.json`) with `Date.now()`.
+- **Online/Offline Checking**: When rendering contacts, the UI manager fetches their `last_seen` timestamps. If the difference between the current time and `last_seen` is less than 120 seconds (2 minutes), the contact is shown with a green **Online** status indicator; otherwise, it is shown as **Offline** (grey indicator).
+- **Explicit Sign Out**: When a user signs out, the client explicitly sets their `last_seen` to `0`, ensuring they immediately appear offline to all connected contacts.
 
 ---
 
-## 6. Sigurnosna pravila baze podataka (Security Rules)
-Firebase Realtime Database je konfigurisan tako da niko ne može čitati ili pisati podatke bez validne autentifikacije. Pravila zahtijevaju da svaki REST poziv sadrži `?auth=${token}` parametar:
+## 5. Smart In-Page Toast Notifications
+
+To provide a premium and non-intrusive notifications experience:
+1. **Webpage Toast Injections (`content.js`)**: When a message is received while the extension popup is closed, the background script queries the active tab and sends a message to inject a custom, themed toast notification (`content.js`).
+   - The toast features a sleek retrowave/cyberpunk layout.
+   - Clicking the toast triggers an `'OPEN_POPUP'` message to the background service worker, opening the extension popup directly.
+   - It automatically dismisses after 6 seconds with a smooth slide-out animation.
+2. **System Notification Fallback**: If the active browser tab is a restricted internal page (e.g. `chrome://extensions/`, `chrome://settings/`, or Chrome Web Store) where Chrome blocks content scripts for security reasons, the extension falls back to a standard system notification (`chrome.notifications.create`).
+3. **Nord Dynamic Theming**: The background script forwards the user's active theme setting (`light`, `dark`, or `system`). The content script dynamically applies the exact colors from the Nord palette:
+   - **Dark Nord:** Background `#2e3440`, accent `#88c0d0`, text `#eceff4`, muted text `#d8dee9`.
+   - **Light Nord:** Background `#eceff4`, accent `#5e81ac`, text `#2e3440`, muted text `#4c566a`.
+
+---
+
+## 6. Database Security Rules
+
+Firebase Realtime Database enforces secure read/write rules. Every HTTP REST or Websocket connection must be authenticated:
 
 ```json
 {
@@ -106,16 +109,11 @@ Firebase Realtime Database je konfigurisan tako da niko ne može čitati ili pis
       "$qiko_id": {
         ".write": "auth != null"
       }
-    },
-    "inbox": {
-      "$uid": {
-        ".read": "auth != null && auth.uid == $uid",
-        ".write": "auth != null"
-      }
     }
   }
 }
 ```
-Ova struktura osigurava da:
-- Korisnik može pisati isključivo u svoj `/users/${uid}` profil i čitati samo iz svog `/inbox/${uid}` sandučeta.
-- Svako može poslati poruku u tuđi `/inbox/${uid}` (zahtijeva se samo da pošiljalac ima aktivan nalog, tj. `auth != null`).
+
+This ensures:
+- Only authenticated users (`auth != null`) can look up profiles or resolve Qiko IDs.
+- A user can only write to their own profile node under `/users/${uid}`.
