@@ -1,4 +1,9 @@
 import { CONFIG } from '../config.js';
+import { DOM_IDS } from '../lib/constants.js';
+import * as firebaseAuth from '../lib/firebase-auth.js';
+import * as firebaseDb from '../lib/firebase-db.js';
+import * as uiManager from '../lib/ui-manager.js';
+import * as chatEngine from '../lib/chat-engine.js';
 
 let tempGeneratedId = null;
 let tempRegisterEmail = '';
@@ -57,112 +62,66 @@ const storage = {
   }
 };
 
-function showCustomAlert(message) {
-  return new Promise((resolve) => {
-    const overlay = document.createElement('div');
-    overlay.className = 'qiko-modal-overlay';
-    
-    const box = document.createElement('div');
-    box.className = 'qiko-modal-box';
-    
-    const msgEl = document.createElement('p');
-    msgEl.className = 'qiko-modal-message';
-    msgEl.textContent = message;
-    
-    const btnGroup = document.createElement('div');
-    btnGroup.className = 'qiko-modal-buttons';
-    
-    const btnOk = document.createElement('button');
-    btnOk.type = 'button';
-    btnOk.className = 'qiko-modal-btn qiko-modal-btn-primary';
-    btnOk.textContent = 'OK';
-    
-    btnOk.onclick = () => {
-      overlay.classList.remove('show');
-      setTimeout(() => {
-        overlay.remove();
-        resolve();
-      }, 200);
-    };
-    
-    btnGroup.appendChild(btnOk);
-    box.appendChild(msgEl);
-    box.appendChild(btnGroup);
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-    
-    setTimeout(() => overlay.classList.add('show'), 10);
+async function initThemeSwitcher() {
+  const state = await storage.get('qiko_theme');
+  const currentTheme = state.qiko_theme || 'system';
+  applyTheme(currentTheme);
+
+  document.querySelectorAll('.theme-select-dropdown').forEach(select => {
+    select.addEventListener('change', async (e) => {
+      const selectedValue = e.target.value;
+      applyTheme(selectedValue);
+      await storage.set({ qiko_theme: selectedValue });
+    });
   });
+
+  const btnThemeToggle = document.getElementById('sidebar-theme-toggle');
+  if (btnThemeToggle) {
+    btnThemeToggle.addEventListener('click', async () => {
+      const s = await storage.get('qiko_theme');
+      const current = s.qiko_theme || 'system';
+      
+      let nextTheme = 'light';
+      if (current === 'light') {
+        nextTheme = 'dark';
+      } else if (current === 'dark') {
+        nextTheme = 'system';
+      }
+      
+      applyTheme(nextTheme);
+      await storage.set({ qiko_theme: nextTheme });
+    });
+  }
 }
 
-function showCustomConfirm(message) {
-  return new Promise((resolve) => {
-    const overlay = document.createElement('div');
-    overlay.className = 'qiko-modal-overlay';
-    
-    const box = document.createElement('div');
-    box.className = 'qiko-modal-box';
-    
-    const msgEl = document.createElement('p');
-    msgEl.className = 'qiko-modal-message';
-    msgEl.textContent = message;
-    
-    const btnGroup = document.createElement('div');
-    btnGroup.className = 'qiko-modal-buttons';
-    
-    const btnCancel = document.createElement('button');
-    btnCancel.type = 'button';
-    btnCancel.className = 'qiko-modal-btn qiko-modal-btn-secondary';
-    btnCancel.textContent = 'Cancel';
-    
-    const btnConfirm = document.createElement('button');
-    btnConfirm.type = 'button';
-    btnConfirm.className = 'qiko-modal-btn qiko-modal-btn-primary';
-    btnConfirm.textContent = 'Confirm';
-    
-    btnCancel.onclick = () => {
-      overlay.classList.remove('show');
-      setTimeout(() => {
-        overlay.remove();
-        resolve(false);
-      }, 200);
-    };
-    
-    btnConfirm.onclick = () => {
-      overlay.classList.remove('show');
-      setTimeout(() => {
-        overlay.remove();
-        resolve(true);
-      }, 200);
-    };
-    
-    btnGroup.appendChild(btnCancel);
-    btnGroup.appendChild(btnConfirm);
-    box.appendChild(msgEl);
-    box.appendChild(btnGroup);
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-    
-    setTimeout(() => overlay.classList.add('show'), 10);
+function applyTheme(theme) {
+  if (theme === 'light' || theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', theme);
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+
+  document.querySelectorAll('.theme-select-dropdown').forEach(select => {
+    select.value = theme;
   });
-}
 
-async function hashSHA256(str) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(str);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function hashEmail(email) {
-  return hashSHA256(email.trim().toLowerCase());
-}
-
-function generateQikoId(sequence) {
-  const uuid = crypto.randomUUID();
-  const parts = uuid.split('-');
-  return `qx-${parts[1]}-${parts[2]}-${sequence}`;
+  const themeIcon = document.getElementById('theme-icon-svg');
+  if (themeIcon) {
+    let effectiveDark = false;
+    if (theme === 'dark') {
+      effectiveDark = true;
+    } else if (theme === 'system') {
+      effectiveDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    
+    if (effectiveDark) {
+      themeIcon.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
+      themeIcon.setAttribute('title', 'Dark Theme (Click to toggle)');
+    } else {
+      themeIcon.innerHTML = `<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>`;
+      themeIcon.setAttribute('title', 'Light Theme (Click to toggle)');
+    }
+  }
 }
 
 function copyToClipboard(text, tooltipElement) {
@@ -200,296 +159,16 @@ function updateConnectionStatus() {
   });
 }
 
-function showSubScreen(screenId) {
-  const screens = ['screen-loading', 'screen-profile-setup', 'screen-verification', 'screen-sign-in'];
-  screens.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      if (id === screenId) {
-        el.classList.remove('hide');
-      } else {
-        el.classList.add('hide');
-      }
-    }
-  });
-}
-
-function applyTheme(theme) {
-  if (theme === 'light' || theme === 'dark') {
-    document.documentElement.setAttribute('data-theme', theme);
-  } else {
-    document.documentElement.removeAttribute('data-theme');
-  }
-
-  document.querySelectorAll('.theme-select-dropdown').forEach(select => {
-    select.value = theme;
-  });
-
-  const themeIcon = document.getElementById('theme-icon-svg');
-  if (themeIcon) {
-    let effectiveDark = false;
-    if (theme === 'dark') {
-      effectiveDark = true;
-    } else if (theme === 'system') {
-      effectiveDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    
-    if (effectiveDark) {
-      themeIcon.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
-      themeIcon.setAttribute('title', 'Dark Theme (Click to toggle)');
-    } else {
-      themeIcon.innerHTML = `<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>`;
-      themeIcon.setAttribute('title', 'Light Theme (Click to toggle)');
-    }
-  }
-}
-
-async function initThemeSwitcher() {
-  const state = await storage.get('qiko_theme');
-  const currentTheme = state.qiko_theme || 'system';
-  applyTheme(currentTheme);
-
-  document.querySelectorAll('.theme-select-dropdown').forEach(select => {
-    select.addEventListener('change', async (e) => {
-      const selectedValue = e.target.value;
-      applyTheme(selectedValue);
-      await storage.set({ qiko_theme: selectedValue });
-    });
-  });
-
-  const btnThemeToggle = document.getElementById('sidebar-theme-toggle');
-  if (btnThemeToggle) {
-    btnThemeToggle.addEventListener('click', async () => {
-      const s = await storage.get('qiko_theme');
-      const current = s.qiko_theme || 'system';
-      
-      let nextTheme = 'light';
-      if (current === 'light') {
-        nextTheme = 'dark';
-      } else if (current === 'dark') {
-        nextTheme = 'system';
-      }
-      
-      applyTheme(nextTheme);
-      await storage.set({ qiko_theme: nextTheme });
-    });
-  }
-}
-
-async function firebaseSignInAnonymously() {
-  const url = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${CONFIG.FIREBASE_API_KEY}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ returnSecureToken: true })
-  });
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error?.message || "Anonymous registration failed.");
-  }
-  const data = await response.json();
-  return {
-    uid: data.localId,
-    idToken: data.idToken,
-    refreshToken: data.refreshToken
-  };
-}
-
-async function firebaseSignUpWithEmail(email, password) {
-  const url = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${CONFIG.FIREBASE_API_KEY}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      email: email,
-      password: password,
-      returnSecureToken: true
-    })
-  });
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error?.message || "Firebase registration failed.");
-  }
-  const data = await response.json();
-  return {
-    uid: data.localId,
-    idToken: data.idToken,
-    refreshToken: data.refreshToken
-  };
-}
-
-async function firebaseLinkEmail(idToken, email, password) {
-  const url = `https://identitytoolkit.googleapis.com/v1/accounts:update?key=${CONFIG.FIREBASE_API_KEY}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      idToken: idToken,
-      email: email,
-      password: password,
-      returnSecureToken: true
-    })
-  });
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error?.message || "Failed to link email credential.");
-  }
-  const data = await response.json();
-  return {
-    uid: data.localId,
-    idToken: data.idToken,
-    refreshToken: data.refreshToken
-  };
-}
-
-async function firebaseUnlinkEmail(idToken) {
-  const url = `https://identitytoolkit.googleapis.com/v1/accounts:update?key=${CONFIG.FIREBASE_API_KEY}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      idToken: idToken,
-      deleteProvider: ["password"]
-    })
-  });
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error?.message || "Failed to unlink email.");
-  }
-  return await response.json();
-}
-
-async function firebaseSendEmailVerification(idToken) {
-  const url = `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${CONFIG.FIREBASE_API_KEY}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      requestType: "VERIFY_EMAIL",
-      idToken: idToken
-    })
-  });
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error?.message || "Failed to trigger verification email.");
-  }
-  return await response.json();
-}
-
-async function firebaseGetUserData(idToken) {
-  const url = `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${CONFIG.FIREBASE_API_KEY}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ idToken: idToken })
-  });
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error?.message || "Failed to fetch user verification details.");
-  }
-  const data = await response.json();
-  if (!data.users || data.users.length === 0) {
-    throw new Error("User record not found.");
-  }
-  return data.users[0];
-}
-
-async function firebaseSignInWithEmail(email, password) {
-  const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${CONFIG.FIREBASE_API_KEY}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      email: email,
-      password: password,
-      returnSecureToken: true
-    })
-  });
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error?.message || "Failed to authenticate credentials.");
-  }
-  const data = await response.json();
-  return {
-    uid: data.localId,
-    idToken: data.idToken,
-    refreshToken: data.refreshToken
-  };
-}
-
-async function firebaseDeleteAccount(idToken) {
-  const url = `https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${CONFIG.FIREBASE_API_KEY}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ idToken: idToken })
-  });
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error?.message || "Failed to delete credentials from Authentication server.");
-  }
-  return await response.json();
-}
-
-async function fetchAndIncrementUserCount(token) {
-  const url = `${CONFIG.FIREBASE_DB_URL}/user_count.json?auth=${token}`;
-  
-  const getResponse = await fetch(url);
-  if (!getResponse.ok) {
-    throw new Error(`Failed to retrieve user count: ${getResponse.statusText}`);
-  }
-  const currentCount = await getResponse.json();
-  const count = currentCount === null ? 0 : Number(currentCount);
-  
-  const nextCount = count + 1;
-  
-  const putResponse = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(nextCount)
-  });
-  
-  if (!putResponse.ok) {
-    throw new Error(`Failed to update user count: ${putResponse.statusText}`);
-  }
-  
-  return nextCount;
-}
-
-async function isEmailRegistered(emailHash, token) {
-  const url = `${CONFIG.FIREBASE_DB_URL}/emails/${emailHash}.json?auth=${token}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Database check failed: ${response.statusText}`);
-  }
-  const data = await response.json();
-  return data !== null;
+function generateQikoId(sequence) {
+  const uuid = crypto.randomUUID();
+  const parts = uuid.split('-');
+  return `qx-${parts[1]}-${parts[2]}-${sequence}`;
 }
 
 async function saveIdentityToFirebase(qikoId, uid, email, username, token) {
-  const emailHash = await hashEmail(email);
-  
-  const emailUrl = `${CONFIG.FIREBASE_DB_URL}/emails/${emailHash}.json?auth=${token}`;
-  const emailRes = await fetch(emailUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ qiko_user_id: qikoId, uid: uid })
-  });
-  if (!emailRes.ok) {
-    throw new Error("Failed to register email mapping in database.");
-  }
-  
-  const idUrl = `${CONFIG.FIREBASE_DB_URL}/qiko_ids/${qikoId}.json?auth=${token}`;
-  const idRes = await fetch(idUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(uid)
-  });
-  if (!idRes.ok) {
-    throw new Error("Failed to register Qiko ID registry in database.");
-  }
-  
-  const userUrl = `${CONFIG.FIREBASE_DB_URL}/users/${uid}.json?auth=${token}`;
+  const emailHash = await firebaseDb.hashEmail(email);
+  await firebaseDb.saveEmailMapping(emailHash, qikoId, uid, token);
+  await firebaseDb.saveQikoIdMapping(qikoId, uid, token);
   const userProfile = {
     qiko_id: qikoId,
     email: email,
@@ -497,43 +176,7 @@ async function saveIdentityToFirebase(qikoId, uid, email, username, token) {
     current_peer_id: "",
     contacts: []
   };
-  const userRes = await fetch(userUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(userProfile)
-  });
-  if (!userRes.ok) {
-    throw new Error("Failed to save profile credentials in database.");
-  }
-}
-
-async function saveGuestProfileToFirebase(qikoId, uid, token) {
-  const idUrl = `${CONFIG.FIREBASE_DB_URL}/qiko_ids/${qikoId}.json?auth=${token}`;
-  const idRes = await fetch(idUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(uid)
-  });
-  if (!idRes.ok) {
-    throw new Error("Failed to register Guest Qiko ID in database.");
-  }
-
-  const userUrl = `${CONFIG.FIREBASE_DB_URL}/users/${uid}.json?auth=${token}`;
-  const userProfile = {
-    qiko_id: qikoId,
-    email: "",
-    username: "Guest",
-    current_peer_id: "",
-    contacts: []
-  };
-  const userRes = await fetch(userUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(userProfile)
-  });
-  if (!userRes.ok) {
-    throw new Error("Failed to save Guest profile details.");
-  }
+  await firebaseDb.saveUserProfile(uid, userProfile, token);
 }
 
 async function initStartScreen() {
@@ -569,7 +212,7 @@ async function initLoginsScreen() {
   let flow = urlParams.get('flow');
 
   if (flow === 'pending_verification') {
-    showSubScreen('screen-loading');
+    uiManager.showSubScreen('screenLoading');
     const pending = await storage.get('qiko_pending_verification');
     if (!pending.qiko_pending_verification) {
       window.location.href = "../index.html";
@@ -600,35 +243,35 @@ async function initLoginsScreen() {
       btnVerifyBack.textContent = data.flow === 'upgrade' ? "Back to Chat" : "Back to Profile Setup";
     }
 
-    showSubScreen('screen-verification');
+    uiManager.showSubScreen('screenVerification');
   } else if (flow === 'create') {
-    showSubScreen('screen-loading');
+    uiManager.showSubScreen('screenLoading');
     const loadingText = document.getElementById('loading-text');
     if (loadingText) loadingText.textContent = "Securing your connection...";
     
     try {
-      const anonymousSession = await firebaseSignInAnonymously();
+      const anonymousSession = await firebaseAuth.firebaseSignInAnonymously();
       tempUid = anonymousSession.uid;
       tempToken = anonymousSession.idToken;
       tempRefreshToken = anonymousSession.refreshToken;
 
-      const count = await fetchAndIncrementUserCount(tempToken);
+      const count = await firebaseDb.fetchAndIncrementUserCount(tempToken);
       const generatedId = generateQikoId(count);
       tempGeneratedId = generatedId;
       
       const idInput = document.getElementById('generated-id-input');
       if (idInput) idInput.value = generatedId;
 
-      showSubScreen('screen-profile-setup');
+      uiManager.showSubScreen('screenProfileSetup');
     } catch (err) {
       console.error("Failed to generate ID:", err);
-      await showCustomAlert("Failed to initialize Qiko ID. Check database connection rules.");
+      await uiManager.showCustomAlert("Failed to initialize Qiko ID. Check database connection rules.");
       window.location.href = "../index.html";
     }
   } else if (flow === 'signin') {
-    showSubScreen('screen-sign-in');
+    uiManager.showSubScreen('screenSignIn');
   } else if (flow === 'upgrade') {
-    showSubScreen('screen-loading');
+    uiManager.showSubScreen('screenLoading');
     const existing = await storage.get(['qiko_id', 'qiko_user_id', 'qiko_token']);
     if (!existing.qiko_user_id || !existing.qiko_id) {
       window.location.href = "../index.html";
@@ -653,7 +296,7 @@ async function initLoginsScreen() {
     const btnSetupSkip = document.getElementById('btn-setup-skip');
     if (btnSetupSkip) btnSetupSkip.classList.add('hide');
 
-    showSubScreen('screen-profile-setup');
+    uiManager.showSubScreen('screenProfileSetup');
   } else {
     window.location.href = "../index.html";
   }
@@ -682,7 +325,15 @@ async function initLoginsScreen() {
       btnSetupSkip.disabled = true;
       btnSetupSkip.textContent = 'Generating...';
       try {
-        await saveGuestProfileToFirebase(tempGeneratedId, tempUid, tempToken);
+        const userProfile = {
+          qiko_id: tempGeneratedId,
+          email: "",
+          username: "Guest",
+          current_peer_id: "",
+          contacts: []
+        };
+        await firebaseDb.saveQikoIdMapping(tempGeneratedId, tempUid, tempToken);
+        await firebaseDb.saveUserProfile(tempUid, userProfile, tempToken);
 
         const guestState = {
           qiko_user_id: tempUid,
@@ -697,7 +348,7 @@ async function initLoginsScreen() {
         window.location.href = "dashboard.html";
       } catch (err) {
         console.error("Anonymous sign in failed:", err);
-        await showCustomAlert("Failed to initialize Guest session. Try again.");
+        await uiManager.showCustomAlert("Failed to initialize Guest session. Try again.");
         btnSetupSkip.disabled = false;
         btnSetupSkip.textContent = 'Continue without registering';
       }
@@ -712,20 +363,16 @@ async function initLoginsScreen() {
       const email = document.getElementById('setup-email').value.trim();
       const password = document.getElementById('setup-password').value;
       const username = document.getElementById('setup-username').value.trim();
-      const errorMsgEl = document.getElementById('setup-error-msg');
-
-      if (errorMsgEl) {
-        errorMsgEl.classList.add('hide');
-        errorMsgEl.textContent = '';
-      }
+      
+      uiManager.clearError('setupErrorMsg');
 
       const btnReg = document.getElementById('btn-register');
       btnReg.disabled = true;
       btnReg.textContent = 'Initializing...';
 
       try {
-        const emailHash = await hashEmail(email);
-        const inUse = await isEmailRegistered(emailHash, tempToken);
+        const emailHash = await firebaseDb.hashEmail(email);
+        const inUse = await firebaseDb.isEmailRegistered(emailHash, tempToken);
         if (inUse) {
           throw new Error("This email is already registered. Please sign in instead.");
         }
@@ -736,9 +383,9 @@ async function initLoginsScreen() {
 
         let sessionAuth;
         if (flow === 'upgrade') {
-          sessionAuth = await firebaseLinkEmail(tempToken, email, password);
+          sessionAuth = await firebaseAuth.firebaseLinkEmail(tempToken, email, password);
         } else {
-          sessionAuth = await firebaseSignUpWithEmail(email, password);
+          sessionAuth = await firebaseAuth.firebaseSignUpWithEmail(email, password);
         }
 
         tempUid = sessionAuth.uid;
@@ -748,27 +395,29 @@ async function initLoginsScreen() {
         const pendingData = {
           flow: flow === 'upgrade' ? 'upgrade' : 'create',
           uid: tempUid,
-          token: tempToken,
-          refreshToken: tempRefreshToken,
+          qiko_id: tempGeneratedId,
           email: tempRegisterEmail,
-          username: tempRegisterUsername,
-          qiko_id: tempGeneratedId
+          username: tempRegisterUsername || 'Guest',
+          token: tempToken,
+          refreshToken: tempRefreshToken
         };
-        await storage.set({ qiko_pending_verification: JSON.stringify(pendingData) });
 
-        await firebaseSendEmailVerification(tempToken);
+        await storage.set({ qiko_pending_verification: JSON.stringify(pendingData) });
+        
+        await firebaseAuth.firebaseSendEmailVerification(tempToken);
 
         const emailDisplay = document.getElementById('sent-code-email');
-        if (emailDisplay) emailDisplay.textContent = email;
+        if (emailDisplay) emailDisplay.textContent = tempRegisterEmail;
 
-        showSubScreen('screen-verification');
-        
-      } catch (err) {
-        console.error("Registration initiation failed: ", err);
-        if (errorMsgEl) {
-          errorMsgEl.textContent = err.message || "An error occurred. Please try again.";
-          errorMsgEl.classList.remove('hide');
+        const btnVerifyBack = document.getElementById('btn-verification-back');
+        if (btnVerifyBack) {
+          btnVerifyBack.textContent = flow === 'upgrade' ? "Back to Chat" : "Back to Profile Setup";
         }
+
+        uiManager.showSubScreen('screenVerification');
+      } catch (err) {
+        console.error("Profile Setup Failed:", err);
+        uiManager.showError('setupErrorMsg', err.message || "Failed to initialize profile. Try again.");
       } finally {
         btnReg.disabled = false;
         btnReg.textContent = 'Register';
@@ -776,40 +425,58 @@ async function initLoginsScreen() {
     });
   }
 
-  const btnVerifyBack = document.getElementById('btn-verification-back');
-  if (btnVerifyBack) {
-    btnVerifyBack.addEventListener('click', async () => {
-      const pending = await storage.get('qiko_pending_verification');
-      let verifyFlow = 'create';
-      if (pending.qiko_pending_verification) {
-        try {
-          const parsed = JSON.parse(pending.qiko_pending_verification);
-          verifyFlow = parsed.flow;
-        } catch (e) {
-          console.error(e);
-        }
-      }
+  const btnVerifySubmit = document.getElementById('btn-verify-submit');
+  if (btnVerifySubmit) {
+    btnVerifySubmit.addEventListener('click', async () => {
+      btnVerifySubmit.disabled = true;
+      btnVerifySubmit.textContent = 'Checking...';
+      uiManager.clearError('verificationErrorMsg');
 
-      if (verifyFlow === 'upgrade') {
-        try {
-          await firebaseUnlinkEmail(tempToken);
-        } catch (err) {
-          console.error("Failed to unlink email on verification cancel:", err);
+      try {
+        const user = await firebaseAuth.firebaseGetUserData(tempToken);
+        if (!user.emailVerified) {
+          throw new Error("Email address not verified yet. Please click verification link in your inbox.");
         }
-      } else {
-        try {
-          await firebaseDeleteAccount(tempToken);
-        } catch (err) {
-          console.error("Failed to delete temp account on verification cancel:", err);
-        }
-      }
-      await storage.remove('qiko_pending_verification');
 
-      const guest = await storage.get('qiko_user_id');
-      if (guest.qiko_user_id) {
+        // Save mappings
+        const emailHash = await firebaseDb.hashEmail(tempRegisterEmail);
+        await firebaseDb.saveQikoIdMapping(tempGeneratedId, tempUid, tempToken);
+        await firebaseDb.saveEmailMapping(emailHash, tempGeneratedId, tempUid, tempToken);
+
+        const userProfile = {
+          qiko_id: tempGeneratedId,
+          email: tempRegisterEmail,
+          username: tempRegisterUsername || 'Guest',
+          current_peer_id: "",
+          contacts: []
+        };
+        
+        if (flow === 'upgrade') {
+          const existingContacts = await firebaseDb.getContacts(tempUid, tempToken);
+          userProfile.contacts = existingContacts;
+        }
+
+        await firebaseDb.saveUserProfile(tempUid, userProfile, tempToken);
+
+        const activeState = {
+          qiko_user_id: tempUid,
+          qiko_email: tempRegisterEmail,
+          qiko_username: tempRegisterUsername || 'Guest',
+          qiko_registered: true,
+          qiko_id: tempGeneratedId,
+          qiko_token: tempToken,
+          qiko_refresh_token: tempRefreshToken
+        };
+        await storage.set(activeState);
+        await storage.remove('qiko_pending_verification');
+
+        await uiManager.showCustomAlert("Profile setup completed successfully!");
         window.location.href = "dashboard.html";
-      } else {
-        showSubScreen('screen-profile-setup');
+      } catch (err) {
+        console.error("Verification confirmation check failed:", err);
+        uiManager.showError('verificationErrorMsg', err.message || "Failed to confirm verification.");
+        btnVerifySubmit.disabled = false;
+        btnVerifySubmit.textContent = 'I have verified my email';
       }
     });
   }
@@ -819,11 +486,14 @@ async function initLoginsScreen() {
     btnResend.addEventListener('click', async () => {
       btnResend.disabled = true;
       btnResend.textContent = 'Sending...';
+      uiManager.clearError('verificationErrorMsg');
+
       try {
-        await firebaseSendEmailVerification(tempToken);
-        await showCustomAlert("Verification link resent! Please check your email inbox.");
+        await firebaseAuth.firebaseSendEmailVerification(tempToken);
+        await uiManager.showCustomAlert("Verification email resent. Please check spam folder too.");
       } catch (err) {
-        await showCustomAlert(err.message || "Failed to resend. Please try again shortly.");
+        console.error("Resending verification email failed:", err);
+        uiManager.showError('verificationErrorMsg', err.message || "Failed to resend verification link.");
       } finally {
         btnResend.disabled = false;
         btnResend.textContent = 'Resend verification email';
@@ -831,60 +501,31 @@ async function initLoginsScreen() {
     });
   }
 
-  const btnVerifySubmit = document.getElementById('btn-verify-submit');
-  if (btnVerifySubmit) {
-    btnVerifySubmit.addEventListener('click', async () => {
-      const errorMsgEl = document.getElementById('verification-error-msg');
-
-      if (errorMsgEl) {
-        errorMsgEl.classList.add('hide');
-        errorMsgEl.textContent = '';
-      }
-
-      btnVerifySubmit.disabled = true;
-      btnVerifySubmit.textContent = 'Checking verification...';
-
-      try {
-        const details = await firebaseGetUserData(tempToken);
-        
-        if (!details.emailVerified) {
-          throw new Error("Your email address is not verified yet. Please check your inbox and click the verification link.");
-        }
-
-        await saveIdentityToFirebase(tempGeneratedId, tempUid, tempRegisterEmail, tempRegisterUsername, tempToken);
-
-        const sessionState = {
-          qiko_user_id: tempUid,
-          qiko_email: tempRegisterEmail,
-          qiko_username: tempRegisterUsername || 'Guest',
-          qiko_registered: true,
-          qiko_id: tempGeneratedId,
-          qiko_token: tempToken,
-          qiko_refresh_token: tempRefreshToken
-        };
-        await storage.set(sessionState);
-
+  const btnVerifyBack = document.getElementById('btn-verification-back');
+  if (btnVerifyBack) {
+    btnVerifyBack.addEventListener('click', async () => {
+      if (flow === 'upgrade') {
         await storage.remove('qiko_pending_verification');
-
         window.location.href = "dashboard.html";
-      } catch (err) {
-        console.error("Verification verification failed: ", err);
-        if (errorMsgEl) {
-          errorMsgEl.textContent = err.message || "Failed to verify. Make sure you clicked the email link.";
-          errorMsgEl.classList.remove('hide');
+      } else {
+        const confirmed = await uiManager.showCustomConfirm("Going back will clear your pending credentials. Are you sure?");
+        if (!confirmed) return;
+
+        uiManager.showSubScreen('screenLoading');
+        try {
+          await firebaseAuth.firebaseUnlinkEmail(tempToken);
+          await storage.remove('qiko_pending_verification');
+          
+          const idInput = document.getElementById('generated-id-input');
+          if (idInput) idInput.value = tempGeneratedId;
+
+          uiManager.showSubScreen('screenProfileSetup');
+        } catch (err) {
+          console.error("Rollback of registration failed:", err);
+          await storage.remove('qiko_pending_verification');
+          window.location.href = "../index.html";
         }
-        btnVerifySubmit.disabled = false;
-        btnVerifySubmit.textContent = 'I have verified my email';
       }
-    });
-  }
-
-
-
-  const btnBackToStart = document.getElementById('btn-back-to-start');
-  if (btnBackToStart) {
-    btnBackToStart.addEventListener('click', () => {
-      window.location.href = "../index.html";
     });
   }
 
@@ -892,407 +533,54 @@ async function initLoginsScreen() {
   if (formSignIn) {
     formSignIn.addEventListener('submit', async (e) => {
       e.preventDefault();
-
-      const email = document.getElementById('signin-email').value;
+      
+      const email = document.getElementById('signin-email').value.trim();
       const password = document.getElementById('signin-password').value;
-      const errorMsgEl = document.getElementById('signin-error-msg');
+      
+      uiManager.clearError('signinErrorMsg');
 
-      if (errorMsgEl) {
-        errorMsgEl.classList.add('hide');
-        errorMsgEl.textContent = '';
-      }
-
-      const btnSubmit = document.getElementById('btn-signin-submit');
-      if (btnSubmit) {
-        btnSubmit.disabled = true;
-        btnSubmit.textContent = 'Signing In...';
-      }
+      const btnSignInSubmit = document.getElementById('btn-signin-submit');
+      btnSignInSubmit.disabled = true;
+      btnSignInSubmit.textContent = 'Signing in...';
 
       try {
-        const sessionAuth = await firebaseSignInWithEmail(email, password);
-        
-        const userUrl = `${CONFIG.FIREBASE_DB_URL}/users/${sessionAuth.uid}.json?auth=${sessionAuth.idToken}`;
-        const profileRes = await fetch(userUrl);
-        if (!profileRes.ok) {
-          throw new Error("Failed to retrieve user profile from database.");
-        }
-        let profile = await profileRes.json();
-        if (!profile) {
-          const count = await fetchAndIncrementUserCount(sessionAuth.idToken);
-          const newQikoId = generateQikoId(count);
-          await saveIdentityToFirebase(newQikoId, sessionAuth.uid, email, "Guest", sessionAuth.idToken);
-          profile = {
-            qiko_id: newQikoId,
-            email: email,
-            username: "Guest"
-          };
-        }
-        
-        const signInState = {
-          qiko_user_id: sessionAuth.uid,
-          qiko_email: email,
-          qiko_username: profile.username || 'Guest',
-          qiko_registered: true,
-          qiko_id: profile.qiko_id,
-          qiko_token: sessionAuth.idToken,
-          qiko_refresh_token: sessionAuth.refreshToken
-        };
+        const sessionAuth = await firebaseAuth.firebaseSignInWithEmail(email, password);
+        const uid = sessionAuth.uid;
+        const token = sessionAuth.idToken;
+        const refreshToken = sessionAuth.refreshToken;
 
-        await storage.set(signInState);
+        const userProfile = await firebaseDb.getUserProfile(uid, token);
+        if (!userProfile || !userProfile.qiko_id) {
+          throw new Error("Unable to retrieve Qiko ID associated with this account.");
+        }
+
+        const activeState = {
+          qiko_user_id: uid,
+          qiko_email: email,
+          qiko_username: userProfile.username || 'Guest',
+          qiko_registered: true,
+          qiko_id: userProfile.qiko_id,
+          qiko_token: token,
+          qiko_refresh_token: refreshToken
+        };
+        await storage.set(activeState);
+
         window.location.href = "dashboard.html";
       } catch (err) {
-        console.error("Authentication failed: ", err);
-        if (errorMsgEl) {
-          errorMsgEl.textContent = err.message || "Failed to sign in. Please verify credentials.";
-          errorMsgEl.classList.remove('hide');
-        }
+        console.error("Sign in failed:", err);
+        uiManager.showError('signinErrorMsg', err.message || "Invalid credentials. Try again.");
       } finally {
-        if (btnSubmit) {
-          btnSubmit.disabled = false;
-          btnSubmit.textContent = 'Sign In';
-        }
+        btnSignInSubmit.disabled = false;
+        btnSignInSubmit.textContent = 'Sign In';
       }
     });
   }
-}
 
-function initProfileTab(state) {
-  const isRegistered = state.qiko_registered === true || state.qiko_registered === 'true';
-
-  const formEdit = document.getElementById('form-profile-edit');
-  const formUpgrade = document.getElementById('form-profile-upgrade');
-
-  if (isRegistered) {
-    if (formEdit) formEdit.classList.remove('hide');
-    if (formUpgrade) formUpgrade.classList.add('hide');
-
-    const idInput = document.getElementById('profile-edit-id');
-    const emailInput = document.getElementById('profile-edit-email');
-    const usernameInput = document.getElementById('profile-edit-username');
-
-    if (idInput) idInput.value = state.qiko_id || '';
-    if (emailInput) emailInput.value = state.qiko_email || '';
-    if (usernameInput) usernameInput.value = state.qiko_username || '';
-
-    if (formEdit) {
-      formEdit.onsubmit = async (e) => {
-        e.preventDefault();
-        const successMsg = document.getElementById('profile-edit-success-msg');
-        const errorMsg = document.getElementById('profile-edit-error-msg');
-        const saveBtn = document.getElementById('btn-profile-save');
-
-        if (successMsg) successMsg.style.display = 'none';
-        if (errorMsg) {
-          errorMsg.classList.add('hide');
-          errorMsg.textContent = '';
-        }
-
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Saving...';
-
-        const nextEmail = emailInput.value.trim();
-        const nextUsername = usernameInput.value.trim();
-
-        try {
-          const userUrl = `${CONFIG.FIREBASE_DB_URL}/users/${state.qiko_user_id}.json?auth=${state.qiko_token}`;
-          const patchRes = await fetch(userUrl, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: nextEmail, username: nextUsername })
-          });
-          if (!patchRes.ok) throw new Error("Failed to update profile nodes in DB.");
-
-          const emailHash = await hashEmail(nextEmail);
-          const emailUrl = `${CONFIG.FIREBASE_DB_URL}/emails/${emailHash}.json?auth=${state.qiko_token}`;
-          await fetch(emailUrl, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ qiko_user_id: state.qiko_id, uid: state.qiko_user_id })
-          });
-
-          await storage.set({
-            qiko_email: nextEmail,
-            qiko_username: nextUsername
-          });
-
-          state.qiko_email = nextEmail;
-          state.qiko_username = nextUsername;
-
-          const userDisplay = document.getElementById('dashboard-user-display');
-          if (userDisplay) {
-            userDisplay.textContent = nextUsername || state.qiko_id;
-          }
-
-          if (successMsg) {
-            successMsg.style.display = 'flex';
-            setTimeout(() => { successMsg.style.display = 'none'; }, 2500);
-          }
-        } catch (err) {
-          console.error("Profile update failed:", err);
-          if (errorMsg) {
-            errorMsg.textContent = err.message || "Failed to update profile details.";
-            errorMsg.classList.remove('hide');
-          }
-        } finally {
-          saveBtn.disabled = false;
-          saveBtn.textContent = 'Save Changes';
-        }
-      };
-    }
-  } else {
-    if (formEdit) formEdit.classList.add('hide');
-    if (formUpgrade) formUpgrade.classList.remove('hide');
-
-    if (state.qiko_token) {
-      firebaseGetUserData(state.qiko_token).then(async (userInfo) => {
-        if (userInfo && userInfo.email) {
-          if (userInfo.emailVerified) {
-            try {
-              await saveIdentityToFirebase(state.qiko_id, state.qiko_user_id, userInfo.email, state.qiko_username);
-              const sessionState = {
-                qiko_registered: true,
-                qiko_email: userInfo.email
-              };
-              await storage.set(sessionState);
-              state.qiko_registered = true;
-              state.qiko_email = userInfo.email;
-              initProfileTab(state);
-            } catch (err) {
-              console.error("Auto-upgrade save failed:", err);
-            }
-          } else {
-            const pendingData = {
-              flow: 'upgrade',
-              uid: state.qiko_user_id,
-              token: state.qiko_token,
-              email: userInfo.email,
-              username: state.qiko_username || 'Guest',
-              qiko_id: state.qiko_id
-            };
-            await storage.set({ qiko_pending_verification: JSON.stringify(pendingData) });
-            window.location.href = "logins.html?flow=pending_verification";
-          }
-        }
-      }).catch(err => {
-        console.error("Failed to check user info on profile tab load:", err);
-      });
-    }
-
-    if (formUpgrade) {
-      formUpgrade.onsubmit = async (e) => {
-        e.preventDefault();
-        const errorMsg = document.getElementById('profile-upgrade-error-msg');
-        const submitBtn = document.getElementById('btn-profile-upgrade-submit');
-
-        if (errorMsg) {
-          errorMsg.classList.add('hide');
-          errorMsg.textContent = '';
-        }
-
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Linking...';
-
-        const email = document.getElementById('profile-upgrade-email').value.trim();
-        const password = document.getElementById('profile-upgrade-password').value;
-        const username = document.getElementById('profile-upgrade-username').value.trim();
-
-        try {
-          const emailHash = await hashEmail(email);
-          const inUse = await isEmailRegistered(emailHash);
-          if (inUse) {
-            throw new Error("This email is already registered. Please sign in instead.");
-          }
-
-          const sessionAuth = await firebaseLinkEmail(state.qiko_token, email, password);
-
-          const pendingData = {
-            flow: 'upgrade',
-            uid: state.qiko_user_id,
-            token: sessionAuth.idToken,
-            email: email,
-            username: username,
-            qiko_id: state.qiko_id
-          };
-          await storage.set({ qiko_pending_verification: JSON.stringify(pendingData) });
-
-          await firebaseSendEmailVerification(sessionAuth.idToken);
-
-          window.location.href = "logins.html?flow=pending_verification";
-
-        } catch (err) {
-          console.error("Profile upgrade linking failed:", err);
-          if (errorMsg) {
-            errorMsg.textContent = err.message || "Failed to upgrade profile.";
-            errorMsg.classList.remove('hide');
-          }
-        } finally {
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Register / Link Profile';
-        }
-      };
-    }
-  }
-
-  const btnSignOut = document.getElementById('btn-profile-signout');
-  if (btnSignOut) {
-    btnSignOut.onclick = async () => {
-      const confirmSignOut = await showCustomConfirm("Would you like to sign out? This will clear local configuration.");
-      if (confirmSignOut) {
-        try {
-          const url = `${CONFIG.FIREBASE_DB_URL}/users/${state.qiko_user_id}/last_seen.json?auth=${state.qiko_token}`;
-          await fetch(url, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: "0"
-          });
-        } catch (e) {
-          console.error(e);
-        }
-        await storage.clear();
-        window.location.href = "../index.html";
-      }
-    };
-  }
-
-  const btnDelete = document.getElementById('btn-profile-delete');
-  if (btnDelete) {
-    btnDelete.onclick = async () => {
-      const confirmDelete = await showCustomConfirm("Are you sure you want to permanently delete your Qiko profile and database records? This action is irreversible.");
-      if (confirmDelete) {
-        btnDelete.disabled = true;
-        btnDelete.textContent = 'Deleting...';
-
-        try {
-          const userUrl = `${CONFIG.FIREBASE_DB_URL}/users/${state.qiko_user_id}.json?auth=${state.qiko_token}`;
-          await fetch(userUrl, { method: "DELETE" });
-
-          const idUrl = `${CONFIG.FIREBASE_DB_URL}/qiko_ids/${state.qiko_id}.json?auth=${state.qiko_token}`;
-          await fetch(idUrl, { method: "DELETE" });
-
-          if (state.qiko_email) {
-            const emailHash = await hashEmail(state.qiko_email);
-            const emailUrl = `${CONFIG.FIREBASE_DB_URL}/emails/${emailHash}.json?auth=${state.qiko_token}`;
-            await fetch(emailUrl, { method: "DELETE" });
-          }
-
-          if (isRegistered && state.qiko_token) {
-            await firebaseDeleteAccount(state.qiko_token);
-          }
-
-          await storage.clear();
-          await showCustomAlert("Your Qiko profile has been permanently deleted.");
-          window.location.href = "../index.html";
-
-        } catch (err) {
-          console.error("Failed to delete account:", err);
-          await showCustomAlert(`Failed to delete profile completely: ${err.message}`);
-          btnDelete.disabled = false;
-          btnDelete.textContent = 'Delete Profile';
-        }
-      }
-    };
-  }
-}
-
-function initConnectTab(state) {
-  const myIdInput = document.getElementById('connect-my-id');
-  if (myIdInput) myIdInput.value = state.qiko_id || '';
-
-  const btnCopyMyId = document.getElementById('btn-connect-copy-my-id');
-  if (btnCopyMyId) {
-    btnCopyMyId.onclick = () => {
-      const tooltip = document.getElementById('connect-copy-tooltip');
-      copyToClipboard(state.qiko_id, tooltip);
-    };
-  }
-
-  const btnCopyLink = document.getElementById('btn-copy-magic-link');
-  if (btnCopyLink) {
-    btnCopyLink.onclick = () => {
-      const inviteUrl = `https://qiko-invite.vercel.app/?id=${state.qiko_id}`;
-      navigator.clipboard.writeText(inviteUrl).then(() => {
-        const oldText = btnCopyLink.textContent;
-        btnCopyLink.textContent = "Invite Link Copied!";
-        btnCopyLink.style.borderColor = "var(--color-primary)";
-        setTimeout(() => {
-          btnCopyLink.textContent = oldText;
-          btnCopyLink.style.borderColor = "";
-        }, 2000);
-      });
-    };
-  }
-
-  const btnApply = document.getElementById('btn-connect-apply');
-  if (btnApply) {
-    btnApply.onclick = async () => {
-      const inputEl = document.getElementById('connect-input-id');
-      const errorMsg = document.getElementById('connect-error-msg');
-      if (!inputEl) return;
-
-      const targetId = inputEl.value.trim();
-      if (!targetId) return;
-
-      if (errorMsg) {
-        errorMsg.classList.add('hide');
-        errorMsg.textContent = '';
-      }
-
-      btnApply.disabled = true;
-      btnApply.textContent = 'Adding...';
-
-      try {
-        if (targetId === state.qiko_id) {
-          throw new Error("You cannot add your own Qiko ID.");
-        }
-
-        const lookupUrl = `${CONFIG.FIREBASE_DB_URL}/qiko_ids/${targetId}.json?auth=${state.qiko_token}`;
-        const res = await fetch(lookupUrl);
-        if (!res.ok) throw new Error("Database lookups failed.");
-        const targetUid = await res.json();
-
-        if (!targetUid) {
-          throw new Error(`User not found with Qiko ID: ${targetId}`);
-        }
-
-        const contactsUrl = `${CONFIG.FIREBASE_DB_URL}/users/${state.qiko_user_id}/contacts.json?auth=${state.qiko_token}`;
-        const contactsRes = await fetch(contactsUrl);
-        let contactsList = [];
-        if (contactsRes.ok) {
-          const list = await contactsRes.json();
-          contactsList = list || [];
-        }
-
-        if (contactsList.length >= 5) {
-          throw new Error("You can only have a maximum of 5 contacts currently. Please remove an existing connection first.");
-        }
-
-        if (contactsList.includes(targetId)) {
-          throw new Error(`Qiko ID ${targetId} is already in your contacts.`);
-        }
-
-        contactsList.push(targetId);
-
-        const updateRes = await fetch(contactsUrl, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(contactsList)
-        });
-        if (!updateRes.ok) throw new Error("Failed to update contacts database.");
-
-        inputEl.value = '';
-        await showCustomAlert(`Successfully added ${targetId} to your contacts!`);
-
-      } catch (err) {
-        console.error("Failed to add connection:", err);
-        if (errorMsg) {
-          errorMsg.textContent = err.message || "Failed to add connection.";
-          errorMsg.classList.remove('hide');
-        }
-      } finally {
-        btnApply.disabled = false;
-        btnApply.textContent = 'Add +';
-      }
-    };
+  const btnBackToStart = document.getElementById('btn-back-to-start');
+  if (btnBackToStart) {
+    btnBackToStart.addEventListener('click', () => {
+      window.location.href = "../index.html";
+    });
   }
 }
 
@@ -1342,8 +630,147 @@ async function initDashboardScreen() {
     }
   }
 
+  async function lookupProfileByQikoId(qikoId) {
+    try {
+      const uid = await firebaseDb.getUidByQikoId(qikoId, state.qiko_token);
+      if (!uid) return null;
+      const profile = await firebaseDb.getUserProfile(uid, state.qiko_token);
+      return profile;
+    } catch (err) {
+      console.error("Failed to lookup profile for Qiko ID:", qikoId, err);
+      return null;
+    }
+  }
+
+  async function loadAndRenderContacts() {
+    try {
+      const contacts = await firebaseDb.getContacts(state.qiko_user_id, state.qiko_token);
+      const resolved = [];
+      
+      for (const contactId of contacts) {
+        let displayName = contactId;
+        let isOnline = false;
+        
+        const profile = await lookupProfileByQikoId(contactId);
+        if (profile) {
+          displayName = (profile.username && profile.username !== 'Guest') ? profile.username : contactId;
+          const lastSeen = profile.last_seen || 0;
+          isOnline = (Date.now() - lastSeen) < 120000;
+        }
+        resolved.push({ id: contactId, displayName, isOnline });
+      }
+      
+      uiManager.renderContacts(resolved, state.qiko_active_partner, async (selectedPartnerId) => {
+        state.qiko_active_partner = selectedPartnerId;
+        await storage.set({ qiko_active_partner: selectedPartnerId });
+        
+        const chatPartnerName = document.getElementById('chat-partner-name');
+        if (chatPartnerName) {
+          const selectedContact = resolved.find(c => c.id === selectedPartnerId);
+          const nameToDisplay = selectedContact ? selectedContact.displayName : selectedPartnerId;
+          chatPartnerName.textContent = `— ${nameToDisplay} —`;
+        }
+        
+        const historyKey = `qiko_history_${selectedPartnerId}`;
+        const historyData = await storage.get(historyKey);
+        const history = historyData[historyKey] || [];
+        uiManager.renderChatLog(history, state.qiko_id);
+      });
+    } catch (err) {
+      console.error("Failed to load and render contacts:", err);
+    }
+  }
+
+  async function selectPartner(partnerId) {
+    state.qiko_active_partner = partnerId;
+    if (btnNavHome && sceneHome) {
+      switchScene(btnNavHome, sceneHome);
+    }
+    await loadAndRenderContacts();
+
+    const chatPartnerName = document.getElementById('chat-partner-name');
+    if (chatPartnerName) {
+      chatPartnerName.textContent = `— ${partnerId} —`;
+      const profile = await lookupProfileByQikoId(partnerId);
+      if (profile) {
+        const nameToUse = profile.username && profile.username !== 'Guest' ? profile.username : partnerId;
+        chatPartnerName.textContent = `— ${nameToUse} —`;
+      }
+    }
+
+    const historyKey = `qiko_history_${partnerId}`;
+    const historyData = await storage.get(historyKey);
+    const history = historyData[historyKey] || [];
+    uiManager.renderChatLog(history, state.qiko_id);
+  }
+
+  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+    chrome.storage.local.set({ qiko_popup_open: true });
+  }
+
+  // Initialize Chat Engine (PeerJS)
+  if (typeof chrome !== 'undefined' && chrome.offscreen) {
+    // Chrome Extension context: Offscreen Document manages PeerJS WebRTC
+    chrome.runtime.sendMessage({ type: 'CHECK_OFFSCREEN' });
+  } else {
+    // Fallback context: Initialize PeerJS in-page
+    try {
+      chatEngine.initChatEngine(state.qiko_id, {
+        onMessage: async (senderId, data) => {
+          console.log(`Received message from ${senderId}:`, data);
+          const historyKey = `qiko_history_${senderId}`;
+          const historyData = await storage.get(historyKey);
+          const history = historyData[historyKey] || [];
+          
+          const isDuplicate = history.some(m => m.timestamp === data.timestamp && m.text === data.text);
+          if (!isDuplicate) {
+            history.push({
+              sender: senderId,
+              text: data.text,
+              timestamp: data.timestamp,
+              received: true
+            });
+            if (history.length > 100) {
+              history.shift();
+            }
+            await storage.set({ [historyKey]: history });
+            
+            // Auto-add to contacts if not already present
+            const contacts = await firebaseDb.getContacts(state.qiko_user_id, state.qiko_token);
+            if (!contacts.includes(senderId)) {
+              contacts.push(senderId);
+              await firebaseDb.updateContacts(state.qiko_user_id, contacts, state.qiko_token);
+            }
+            
+            await loadAndRenderContacts();
+            
+            if (state.qiko_active_partner === senderId) {
+              uiManager.renderChatLog(history, state.qiko_id);
+            }
+          }
+        },
+        onConnectionStateChange: (peerId, status, err) => {
+          console.log(`P2P Status with ${peerId}:`, status);
+          loadAndRenderContacts();
+        }
+      });
+    } catch (err) {
+      console.error("Failed to initialize PeerJS chat engine in-page:", err);
+    }
+  }
+
+  const activePartnerRes = await storage.get('qiko_active_partner');
+  if (activePartnerRes.qiko_active_partner) {
+    await selectPartner(activePartnerRes.qiko_active_partner);
+  } else {
+    await loadAndRenderContacts();
+  }
+
   if (btnNavHome) {
-    btnNavHome.addEventListener('click', () => switchScene(btnNavHome, sceneHome));
+    btnNavHome.addEventListener('click', async () => {
+      switchScene(btnNavHome, sceneHome);
+      await loadAndRenderContacts();
+    });
   }
   if (btnNavProfile) {
     btnNavProfile.addEventListener('click', () => {
@@ -1366,278 +793,29 @@ async function initDashboardScreen() {
     });
   }
 
-  const activeChatsBar = document.getElementById('active-chats-bar');
-  const activeChatsList = document.getElementById('active-chats-list');
-  const chatEmptyState = document.getElementById('chat-empty-state');
-  const chatMainSection = document.getElementById('chat-main-section');
-  const chatPartnerName = document.getElementById('chat-partner-name');
-  const chatLog = document.getElementById('chat-messages-log');
-
-  function renderChatLog(messages) {
-    if (!chatLog) return;
-    chatLog.innerHTML = '';
-
-    if (messages.length === 0) {
-      chatLog.innerHTML = `
-        <div class="msg-time">System</div>
-        <div class="msg-bubble received">No messages yet. Send a message to start chatting!</div>
-      `;
-      return;
-    }
-
-    let lastTime = null;
-    messages.forEach(msg => {
-      const timeStr = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      if (lastTime !== timeStr) {
-        const timeDiv = document.createElement('div');
-        timeDiv.className = 'msg-time';
-        timeDiv.textContent = timeStr;
-        chatLog.appendChild(timeDiv);
-        lastTime = timeStr;
-      }
-
-      const bubble = document.createElement('div');
-      bubble.className = `msg-bubble ${msg.received ? 'received' : 'sent'}`;
-      bubble.textContent = msg.text;
-      chatLog.appendChild(bubble);
-    });
-
-    chatLog.scrollTop = chatLog.scrollHeight;
-  }
-
-  async function lookupProfileByQikoId(qikoId) {
-    try {
-      const idRes = await fetch(`${CONFIG.FIREBASE_DB_URL}/qiko_ids/${qikoId}.json?auth=${state.qiko_token}`);
-      if (!idRes.ok) return null;
-      const uid = await idRes.json();
-      if (!uid) return null;
-
-      const userRes = await fetch(`${CONFIG.FIREBASE_DB_URL}/users/${uid}.json?auth=${state.qiko_token}`);
-      if (!userRes.ok) return null;
-      const user = await userRes.json();
-      return user;
-    } catch (err) {
-      console.error("Failed to lookup profile for Qiko ID:", qikoId, err);
-      return null;
-    }
-  }
-
-  async function renderContacts() {
-    try {
-      const contactsUrl = `${CONFIG.FIREBASE_DB_URL}/users/${state.qiko_user_id}/contacts.json?auth=${state.qiko_token}`;
-      const res = await fetch(contactsUrl);
-      if (!res.ok) throw new Error("Failed to load contacts.");
-      const contacts = await res.json() || [];
-
-      if (contacts.length === 0) {
-        if (activeChatsBar) activeChatsBar.classList.add('hide');
-        if (chatMainSection) chatMainSection.classList.add('hide');
-        if (chatEmptyState) {
-          chatEmptyState.classList.remove('hide');
-          const emptyTitle = chatEmptyState.querySelector('.empty-title');
-          const emptySubtitle = chatEmptyState.querySelector('.empty-subtitle');
-          if (emptyTitle) emptyTitle.textContent = "No connections currently";
-          if (emptySubtitle) emptySubtitle.textContent = "Add them by clicking connect button or by clicking + button in sidebar.";
-        }
-      } else {
-        if (activeChatsBar) activeChatsBar.classList.remove('hide');
-        if (activeChatsList) activeChatsList.innerHTML = '';
-        if (chatMainSection) chatMainSection.classList.add('hide');
-        if (chatEmptyState) {
-          chatEmptyState.classList.remove('hide');
-          const emptyTitle = chatEmptyState.querySelector('.empty-title');
-          const emptySubtitle = chatEmptyState.querySelector('.empty-subtitle');
-          if (emptyTitle) emptyTitle.textContent = "Choose Connection";
-          if (emptySubtitle) emptySubtitle.textContent = "Select a contact from the bar above to start direct messaging.";
-        }
-
-        contacts.forEach((contactId, index) => {
-          const itemContainer = document.createElement('div');
-          itemContainer.className = 'chat-contact-item';
-          if (state.qiko_active_partner === contactId) {
-            itemContainer.classList.add('active');
-          }
-
-          const chip = document.createElement('div');
-          const colorClass = `circle-pastel-${(index % 5) + 1}`;
-          chip.className = `chat-chip ${colorClass}`;
-
-          const indicator = document.createElement('span');
-          indicator.className = 'online-indicator';
-          chip.appendChild(indicator);
-
-          let displayName = contactId;
-          if (displayName.length > 12) {
-            displayName = displayName.slice(0, 12) + '...';
-          }
-
-          const nameTextNode = document.createTextNode(displayName);
-          chip.appendChild(nameTextNode);
-
-          itemContainer.appendChild(chip);
-
-          lookupProfileByQikoId(contactId).then(profile => {
-            if (profile) {
-              const nameToUse = profile.username && profile.username !== 'Guest' ? profile.username : contactId;
-              let labelName = nameToUse;
-              if (labelName.length > 12) {
-                labelName = labelName.slice(0, 12) + '...';
-              }
-              if (chip.childNodes.length > 1) {
-                chip.childNodes[1].textContent = labelName;
-              }
-
-              const lastSeen = profile.last_seen || 0;
-              const isOnline = (Date.now() - lastSeen) < 120000;
-              if (isOnline) {
-                indicator.classList.add('online');
-              } else {
-                indicator.classList.remove('online');
-              }
-
-              if (state.qiko_active_partner === contactId && chatPartnerName) {
-                chatPartnerName.textContent = `— ${nameToUse} —`;
-              }
-            }
-          }).catch(err => console.error("Error looking up contact profile:", err));
-
-          itemContainer.addEventListener('click', async () => {
-            document.querySelectorAll('.chat-contact-item').forEach(c => c.classList.remove('active'));
-            itemContainer.classList.add('active');
-
-            state.qiko_active_partner = contactId;
-            await storage.set({ qiko_active_partner: contactId });
-
-            if (chatPartnerName) {
-              let currentLabelText = contactId;
-              if (chip.childNodes.length > 1) {
-                currentLabelText = chip.childNodes[1].textContent;
-              }
-              chatPartnerName.textContent = `— ${currentLabelText} —`;
-            }
-
-            if (chatEmptyState) chatEmptyState.classList.add('hide');
-            if (chatMainSection) chatMainSection.classList.remove('hide');
-
-            const historyKey = `qiko_history_${contactId}`;
-            const historyData = await storage.get(historyKey);
-            const history = historyData[historyKey] || [];
-            renderChatLog(history);
-          });
-
-          if (activeChatsList) {
-            activeChatsList.appendChild(itemContainer);
-          }
-        });
-      }
-    } catch (e) {
-      console.error("Contacts rendering error:", e);
-    }
-  }
-
-  async function selectPartner(partnerId) {
-    state.qiko_active_partner = partnerId;
-    if (btnNavHome && sceneHome) {
-      switchScene(btnNavHome, sceneHome);
-    }
-    await renderContacts();
-
-    if (chatEmptyState) chatEmptyState.classList.add('hide');
-    if (chatMainSection) chatMainSection.classList.remove('hide');
-
-    if (chatPartnerName) {
-      chatPartnerName.textContent = `— ${partnerId} —`;
-      lookupProfileByQikoId(partnerId).then(profile => {
-        if (profile) {
-          const nameToUse = profile.username && profile.username !== 'Guest' ? profile.username : partnerId;
-          chatPartnerName.textContent = `— ${nameToUse} —`;
-        }
-      });
-    }
-
-    const historyKey = `qiko_history_${partnerId}`;
-    const historyData = await storage.get(historyKey);
-    const history = historyData[historyKey] || [];
-    renderChatLog(history);
-  }
-
-  const activePartnerRes = await storage.get('qiko_active_partner');
-  if (activePartnerRes.qiko_active_partner) {
-    await selectPartner(activePartnerRes.qiko_active_partner);
-  } else {
-    await renderContacts();
-  }
-
-  if (btnNavHome) {
-    btnNavHome.addEventListener('click', async () => {
-      switchScene(btnNavHome, sceneHome);
-      await renderContacts();
-    });
-  }
-
-  chrome.storage.onChanged.addListener(async (changes) => {
-    if (changes.qiko_user_id && !changes.qiko_user_id.newValue) {
-      window.location.href = "../index.html";
-      return;
-    }
-    if (changes.qiko_token) {
-      state.qiko_token = changes.qiko_token.newValue;
-    }
-    if (changes.qiko_refresh_token) {
-      state.qiko_refresh_token = changes.qiko_refresh_token.newValue;
-    }
-    if (changes.qiko_contacts_updated) {
-      await renderContacts();
-    }
-    if (changes.qiko_active_partner && changes.qiko_active_partner.newValue) {
-      await selectPartner(changes.qiko_active_partner.newValue);
-    }
-
-    const activePartner = state.qiko_active_partner;
-    if (activePartner) {
-      const historyKey = `qiko_history_${activePartner}`;
-      if (changes[historyKey]) {
-        renderChatLog(changes[historyKey].newValue || []);
-      }
-    }
-  });
-
-  window.addEventListener('unload', () => {
-    storage.remove('qiko_active_partner');
-  });
-
+  // Remove Connection Handler
   const btnRemoveConn = document.getElementById('btn-remove-connection');
   if (btnRemoveConn) {
     btnRemoveConn.addEventListener('click', async () => {
       const partnerId = state.qiko_active_partner;
       if (!partnerId) return;
 
-      const confirmed = await showCustomConfirm(`Are you sure you want to remove the connection with ${partnerId}?`);
+      const confirmed = await uiManager.showCustomConfirm(`Are you sure you want to remove the connection with ${partnerId}?`);
       if (!confirmed) return;
 
       btnRemoveConn.disabled = true;
       btnRemoveConn.textContent = 'Removing...';
 
       try {
-        const contactsUrl = `${CONFIG.FIREBASE_DB_URL}/users/${state.qiko_user_id}/contacts.json?auth=${state.qiko_token}`;
-        const contactsRes = await fetch(contactsUrl);
-        if (!contactsRes.ok) throw new Error("Failed to load contacts list.");
-        
-        const list = await contactsRes.json() || [];
-        const newList = list.filter(id => id !== partnerId);
+        const contacts = await firebaseDb.getContacts(state.qiko_user_id, state.qiko_token);
+        const newList = contacts.filter(id => id !== partnerId);
+        await firebaseDb.updateContacts(state.qiko_user_id, newList, state.qiko_token);
 
-        const updateRes = await fetch(contactsUrl, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newList)
-        });
-        if (!updateRes.ok) throw new Error("Failed to update contacts database.");
-
-        // Clear active partner
         state.qiko_active_partner = null;
         await storage.remove('qiko_active_partner');
 
-        // Hide chat main section, show empty state
+        const chatMainSection = document.getElementById('chat-main-section');
+        const chatEmptyState = document.getElementById('chat-empty-state');
         if (chatMainSection) chatMainSection.classList.add('hide');
         if (chatEmptyState) {
           chatEmptyState.classList.remove('hide');
@@ -1647,11 +825,11 @@ async function initDashboardScreen() {
           if (emptySubtitle) emptySubtitle.textContent = "Select a contact from the bar above to start direct messaging.";
         }
 
-        await renderContacts();
-        await showCustomAlert(`Successfully removed ${partnerId} from contacts.`);
+        await loadAndRenderContacts();
+        await uiManager.showCustomAlert(`Successfully removed ${partnerId} from contacts.`);
       } catch (err) {
         console.error("Failed to remove connection:", err);
-        await showCustomAlert(err.message || "Failed to remove connection.");
+        await uiManager.showCustomAlert(err.message || "Failed to remove connection.");
       } finally {
         btnRemoveConn.disabled = false;
         btnRemoveConn.textContent = 'Remove';
@@ -1659,6 +837,7 @@ async function initDashboardScreen() {
     });
   }
 
+  // Sending Messages Handler
   const btnSend = document.getElementById('btn-send-message');
   const inputMessage = document.getElementById('chat-message-input');
 
@@ -1675,57 +854,51 @@ async function initDashboardScreen() {
     const historyKey = `qiko_history_${partnerId}`;
     const timestamp = Date.now();
 
+    const sentMsg = {
+      sender: state.qiko_id,
+      text: msgText,
+      timestamp: timestamp,
+      received: false
+    };
+
+    const historyData = await storage.get(historyKey);
+    const history = historyData[historyKey] || [];
+    history.push(sentMsg);
+    if (history.length > 100) history.shift();
+    await storage.set({ [historyKey]: history });
+    uiManager.renderChatLog(history, state.qiko_id);
+
     try {
-      const historyData = await storage.get(historyKey);
-      const history = historyData[historyKey] || [];
-      
-      history.push({
-        sender: state.qiko_id,
-        text: msgText,
-        timestamp: timestamp,
-        received: false
-      });
-      if (history.length > 100) {
-        history.shift();
+      if (typeof chrome !== 'undefined' && chrome.offscreen) {
+        await new Promise((resolve, reject) => {
+          chrome.runtime.sendMessage({
+            target: 'offscreen',
+            type: 'sendMessage',
+            partnerId: partnerId,
+            text: msgText
+          }, (res) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else if (res && res.success) {
+              resolve(res.payload);
+            } else {
+              reject(new Error((res && res.error) || 'Failed to send message via background channel.'));
+            }
+          });
+        });
+      } else {
+        await chatEngine.sendMessage(partnerId, msgText, state.qiko_id);
       }
-      await storage.set({ [historyKey]: history });
-      renderChatLog(history);
-
-      const lookupUrl = `${CONFIG.FIREBASE_DB_URL}/qiko_ids/${partnerId}.json?auth=${state.qiko_token}`;
-      const lookupRes = await fetch(lookupUrl);
-      if (!lookupRes.ok) throw new Error("Database lookup failed.");
-      const recipientUid = await lookupRes.json();
-      if (!recipientUid) throw new Error("Recipient does not exist.");
-
-      const inboxUrl = `${CONFIG.FIREBASE_DB_URL}/inbox/${recipientUid}.json?auth=${state.qiko_token}`;
-      const payload = {
-        sender_id: state.qiko_id,
-        text: msgText,
-        timestamp: timestamp
-      };
-
-      const postRes = await fetch(inboxUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!postRes.ok) throw new Error("Failed to write to queue.");
-
     } catch (err) {
-      console.error("Message delivery failed:", err);
-      const historyData = await storage.get(historyKey);
-      const history = historyData[historyKey] || [];
+      console.error("P2P transmission failed:", err);
       history.push({
-        sender: 'System',
-        text: `Error: Message delivery failed. Recipient may be offline.`,
+        sender: 'system',
+        text: `Message delivery failed: ${err.message || 'Peer is offline or unreachable.'}`,
         timestamp: Date.now(),
         received: true
       });
-      if (history.length > 100) {
-        history.shift();
-      }
       await storage.set({ [historyKey]: history });
-      renderChatLog(history);
+      uiManager.renderChatLog(history, state.qiko_id);
     }
   };
 
@@ -1739,6 +912,339 @@ async function initDashboardScreen() {
         sendMessageFunc();
       }
     });
+  }
+
+  // Chrome Storage listener for background updates
+  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+    chrome.storage.onChanged.addListener(async (changes) => {
+      if (changes.qiko_user_id && !changes.qiko_user_id.newValue) {
+        window.location.href = "../index.html";
+        return;
+      }
+      if (changes.qiko_token) {
+        state.qiko_token = changes.qiko_token.newValue;
+      }
+      if (changes.qiko_refresh_token) {
+        state.qiko_refresh_token = changes.qiko_refresh_token.newValue;
+      }
+      if (changes.qiko_contacts_updated) {
+        await loadAndRenderContacts();
+      }
+      if (changes.qiko_active_partner && changes.qiko_active_partner.newValue) {
+        await selectPartner(changes.qiko_active_partner.newValue);
+      }
+
+      const activePartner = state.qiko_active_partner;
+      if (activePartner) {
+        const historyKey = `qiko_history_${activePartner}`;
+        if (changes[historyKey]) {
+          uiManager.renderChatLog(changes[historyKey].newValue || [], state.qiko_id);
+        }
+      }
+    });
+  }
+
+  // Presence / Pinging every 60s
+  const pingPresence = async () => {
+    try {
+      await firebaseDb.updatePresence(state.qiko_user_id, Date.now(), state.qiko_token);
+    } catch (err) {
+      console.warn("Failed to ping presence status:", err);
+    }
+  };
+
+  pingPresence();
+  const presenceInterval = setInterval(pingPresence, 60000);
+
+  window.addEventListener('unload', () => {
+    clearInterval(presenceInterval);
+    storage.remove('qiko_active_partner');
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ qiko_popup_open: false });
+    }
+  });
+}
+
+function initProfileTab(state) {
+  const isRegistered = state.qiko_registered === true || state.qiko_registered === 'true';
+
+  const formEdit = document.getElementById('form-profile-edit');
+  const formUpgrade = document.getElementById('form-profile-upgrade');
+
+  if (isRegistered) {
+    if (formEdit) formEdit.classList.remove('hide');
+    if (formUpgrade) formUpgrade.classList.add('hide');
+
+    const idInput = document.getElementById('profile-edit-id');
+    const emailInput = document.getElementById('profile-edit-email');
+    const usernameInput = document.getElementById('profile-edit-username');
+
+    if (idInput) idInput.value = state.qiko_id || '';
+    if (emailInput) emailInput.value = state.qiko_email || '';
+    if (usernameInput) usernameInput.value = state.qiko_username || '';
+
+    if (formEdit) {
+      formEdit.onsubmit = async (e) => {
+        e.preventDefault();
+        const successMsg = document.getElementById('profile-edit-success-msg');
+        const saveBtn = document.getElementById('btn-profile-save');
+
+        if (successMsg) successMsg.style.display = 'none';
+        uiManager.clearError('profileEditErrorMsg');
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+
+        const nextEmail = emailInput.value.trim();
+        const nextUsername = usernameInput.value.trim();
+
+        try {
+          await firebaseDb.patchUserProfile(state.qiko_user_id, { email: nextEmail, username: nextUsername }, state.qiko_token);
+          
+          const emailHash = await firebaseDb.hashEmail(nextEmail);
+          await firebaseDb.saveEmailMapping(emailHash, state.qiko_id, state.qiko_user_id, state.qiko_token);
+
+          await storage.set({
+            qiko_email: nextEmail,
+            qiko_username: nextUsername
+          });
+
+          state.qiko_email = nextEmail;
+          state.qiko_username = nextUsername;
+
+          const userDisplay = document.getElementById('dashboard-user-display');
+          if (userDisplay) {
+            userDisplay.textContent = nextUsername || state.qiko_id;
+          }
+
+          if (successMsg) {
+            successMsg.style.display = 'flex';
+            setTimeout(() => { successMsg.style.display = 'none'; }, 2500);
+          }
+        } catch (err) {
+          console.error("Profile update failed:", err);
+          uiManager.showError('profileEditErrorMsg', err.message || "Failed to update profile details.");
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Changes';
+        }
+      };
+    }
+  } else {
+    if (formEdit) formEdit.classList.add('hide');
+    if (formUpgrade) formUpgrade.classList.remove('hide');
+
+    if (state.qiko_token) {
+      firebaseAuth.firebaseGetUserData(state.qiko_token).then(async (userInfo) => {
+        if (userInfo && userInfo.email) {
+          if (userInfo.emailVerified) {
+            try {
+              await saveIdentityToFirebase(state.qiko_id, state.qiko_user_id, userInfo.email, state.qiko_username, state.qiko_token);
+              const sessionState = {
+                qiko_registered: true,
+                qiko_email: userInfo.email
+              };
+              await storage.set(sessionState);
+              state.qiko_registered = true;
+              state.qiko_email = userInfo.email;
+              initProfileTab(state);
+            } catch (err) {
+              console.error("Auto-upgrade save failed:", err);
+            }
+          } else {
+            const pendingData = {
+              flow: 'upgrade',
+              uid: state.qiko_user_id,
+              token: state.qiko_token,
+              email: userInfo.email,
+              username: state.qiko_username || 'Guest',
+              qiko_id: state.qiko_id
+            };
+            await storage.set({ qiko_pending_verification: JSON.stringify(pendingData) });
+            window.location.href = "logins.html?flow=pending_verification";
+          }
+        }
+      }).catch(err => {
+        console.error("Failed to check user info on profile tab load:", err);
+      });
+    }
+
+    if (formUpgrade) {
+      formUpgrade.onsubmit = async (e) => {
+        e.preventDefault();
+        uiManager.clearError('profileUpgradeErrorMsg');
+        const submitBtn = document.getElementById('btn-profile-upgrade-submit');
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Linking...';
+
+        const email = document.getElementById('profile-upgrade-email').value.trim();
+        const password = document.getElementById('profile-upgrade-password').value;
+        const username = document.getElementById('profile-upgrade-username').value.trim();
+
+        try {
+          const emailHash = await firebaseDb.hashEmail(email);
+          const inUse = await firebaseDb.isEmailRegistered(emailHash, state.qiko_token);
+          if (inUse) {
+            throw new Error("This email is already registered. Please sign in instead.");
+          }
+
+          const sessionAuth = await firebaseAuth.firebaseLinkEmail(state.qiko_token, email, password);
+
+          const pendingData = {
+            flow: 'upgrade',
+            uid: state.qiko_user_id,
+            token: sessionAuth.idToken,
+            email: email,
+            username: username,
+            qiko_id: state.qiko_id
+          };
+          await storage.set({ qiko_pending_verification: JSON.stringify(pendingData) });
+
+          await firebaseAuth.firebaseSendEmailVerification(sessionAuth.idToken);
+
+          window.location.href = "logins.html?flow=pending_verification";
+        } catch (err) {
+          console.error("Profile upgrade linking failed:", err);
+          uiManager.showError('profileUpgradeErrorMsg', err.message || "Failed to upgrade profile.");
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Register / Link Profile';
+        }
+      };
+    }
+  }
+
+  const btnSignOut = document.getElementById('btn-profile-signout');
+  if (btnSignOut) {
+    btnSignOut.onclick = async () => {
+      const confirmSignOut = await uiManager.showCustomConfirm("Would you like to sign out? This will clear local configuration.");
+      if (confirmSignOut) {
+        try {
+          await firebaseDb.updatePresence(state.qiko_user_id, 0, state.qiko_token);
+        } catch (e) {
+          console.error(e);
+        }
+        await storage.clear();
+        window.location.href = "../index.html";
+      }
+    };
+  }
+
+  const btnDelete = document.getElementById('btn-profile-delete');
+  if (btnDelete) {
+    btnDelete.onclick = async () => {
+      const confirmDelete = await uiManager.showCustomConfirm("Are you sure you want to permanently delete your Qiko profile and database records? This action is irreversible.");
+      if (confirmDelete) {
+        btnDelete.disabled = true;
+        btnDelete.textContent = 'Deleting...';
+
+        try {
+          await firebaseDb.deleteUserProfile(state.qiko_user_id, state.qiko_token);
+          await firebaseDb.deleteQikoIdMapping(state.qiko_id, state.qiko_token);
+
+          if (state.qiko_email) {
+            const emailHash = await firebaseDb.hashEmail(state.qiko_email);
+            await firebaseDb.deleteEmailMapping(emailHash, state.qiko_token);
+          }
+
+          if (isRegistered && state.qiko_token) {
+            await firebaseAuth.firebaseDeleteAccount(state.qiko_token);
+          }
+
+          await storage.clear();
+          await uiManager.showCustomAlert("Your Qiko profile has been permanently deleted.");
+          window.location.href = "../index.html";
+        } catch (err) {
+          console.error("Failed to delete account:", err);
+          await uiManager.showCustomAlert(`Failed to delete profile completely: ${err.message}`);
+          btnDelete.disabled = false;
+          btnDelete.textContent = 'Delete Profile';
+        }
+      }
+    };
+  }
+}
+
+function initConnectTab(state) {
+  const myIdInput = document.getElementById('connect-my-id');
+  if (myIdInput) myIdInput.value = state.qiko_id || '';
+
+  const btnCopyMyId = document.getElementById('btn-connect-copy-my-id');
+  if (btnCopyMyId) {
+    btnCopyMyId.onclick = () => {
+      const tooltip = document.getElementById('connect-copy-tooltip');
+      copyToClipboard(state.qiko_id, tooltip);
+    };
+  }
+
+  const btnCopyLink = document.getElementById('btn-copy-magic-link');
+  if (btnCopyLink) {
+    btnCopyLink.onclick = () => {
+      const inviteUrl = `https://qiko-invite.vercel.app/?id=${state.qiko_id}`;
+      navigator.clipboard.writeText(inviteUrl).then(() => {
+        const oldText = btnCopyLink.textContent;
+        btnCopyLink.textContent = "Invite Link Copied!";
+        btnCopyLink.style.borderColor = "var(--color-primary)";
+        setTimeout(() => {
+          btnCopyLink.textContent = oldText;
+          btnCopyLink.style.borderColor = "";
+        }, 2000);
+      });
+    };
+  }
+
+  const btnApply = document.getElementById('btn-connect-apply');
+  if (btnApply) {
+    btnApply.onclick = async () => {
+      const inputEl = document.getElementById('connect-input-id');
+      if (!inputEl) return;
+
+      const targetId = inputEl.value.trim();
+      if (!targetId) return;
+
+      uiManager.clearError('connectErrorMsg');
+
+      btnApply.disabled = true;
+      btnApply.textContent = 'Adding...';
+
+      try {
+        if (targetId === state.qiko_id) {
+          throw new Error("You cannot add your own Qiko ID.");
+        }
+
+        const targetUid = await firebaseDb.getUidByQikoId(targetId, state.qiko_token);
+        if (!targetUid) {
+          throw new Error(`User not found with Qiko ID: ${targetId}`);
+        }
+
+        const contactsList = await firebaseDb.getContacts(state.qiko_user_id, state.qiko_token);
+
+        if (contactsList.length >= 5) {
+          throw new Error("You can only have a maximum of 5 contacts currently. Please remove an existing connection first.");
+        }
+
+        if (contactsList.includes(targetId)) {
+          throw new Error(`Qiko ID ${targetId} is already in your contacts.`);
+        }
+
+        contactsList.push(targetId);
+        await firebaseDb.updateContacts(state.qiko_user_id, contactsList, state.qiko_token);
+
+        inputEl.value = '';
+        await uiManager.showCustomAlert(`Successfully added ${targetId} to your contacts!`);
+
+        state.qiko_active_partner = targetId;
+        await storage.set({ qiko_active_partner: targetId });
+        window.location.href = "dashboard.html";
+      } catch (err) {
+        console.error("Failed to add connection:", err);
+        uiManager.showError('connectErrorMsg', err.message || "Failed to add connection.");
+      } finally {
+        btnApply.disabled = false;
+        btnApply.textContent = 'Add +';
+      }
+    };
   }
 }
 

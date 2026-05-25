@@ -1,9 +1,5 @@
 import { CONFIG } from './config.js';
 
-let activeReader = null;
-let currentUid = null;
-let currentToken = null;
-let isConnecting = false;
 let isPopupOpen = false;
 
 async function getStorageData(keys) {
@@ -36,42 +32,8 @@ async function updatePresence() {
   }
 }
 
-async function checkAndConnectStream() {
-  updatePresence();
-  if (isConnecting) return;
-  
-  const state = await getStorageData(['qiko_user_id', 'qiko_token']);
-  const uid = state.qiko_user_id;
-  const token = state.qiko_token;
-
-  if (!uid || !token) {
-    closeActiveStream();
-    return;
-  }
-
-  if (activeReader && (currentUid !== uid || currentToken !== token)) {
-    closeActiveStream();
-  }
-
-  if (!activeReader) {
-    currentUid = uid;
-    currentToken = token;
-    startInboxStream(uid, token);
-  }
-}
-
-function closeActiveStream() {
-  if (activeReader) {
-    try {
-      activeReader.cancel();
-    } catch (e) {
-      console.error("Error cancelling stream reader:", e);
-    }
-    activeReader = null;
-  }
-  currentUid = null;
-  currentToken = null;
-  isConnecting = false;
+async function checkPresence() {
+  await updatePresence();
 }
 
 async function attemptTokenRefresh() {
@@ -132,188 +94,84 @@ async function attemptTokenRefresh() {
   }
 }
 
-async function startInboxStream(uid, token) {
-  isConnecting = true;
-  const url = `${CONFIG.FIREBASE_DB_URL}/inbox/${uid}.json?auth=${token}`;
+const OFFSCREEN_DOCUMENT_PATH = 'offscreen.html';
 
-  try {
-    const response = await fetch(url, {
-      headers: { 'Accept': 'text/event-stream' }
-    });
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        console.warn("Unauthorized/expired stream token (401). Attempting refresh...");
-        const refreshed = await attemptTokenRefresh();
-        if (refreshed) {
-          isConnecting = false;
-          checkAndConnectStream();
-          return;
-        }
-      }
-      throw new Error(`SSE stream HTTP status error: ${response.status}`);
-    }
-
-    activeReader = response.body.getReader();
-    isConnecting = false;
-
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (activeReader) {
-      const { value, done } = await activeReader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
-
-      let currentEvent = 'put';
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('event:')) {
-          currentEvent = trimmed.slice(6).trim();
-        } else if (trimmed.startsWith('data:')) {
-          const dataStr = trimmed.slice(5).trim();
-          if (dataStr === 'null') continue;
-
-          try {
-            const parsed = JSON.parse(dataStr);
-            if (currentEvent === 'put' || currentEvent === 'patch') {
-              handleInboxPayload(parsed.path, parsed.data, uid, token);
-            }
-          } catch (err) {
-            console.error("Failed to parse SSE payload data:", err);
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.error("Qiko inbox stream failed, retrying in 5 seconds...", err);
-    closeActiveStream();
-    setTimeout(() => checkAndConnectStream(), 5000);
+async function hasOffscreenDocument() {
+  if (typeof chrome.offscreen === 'undefined') return false;
+  if (typeof chrome.offscreen.hasDocument === 'function') {
+    return await chrome.offscreen.hasDocument();
   }
+  const contexts = await chrome.runtime.getContexts({
+    contextTypes: ['OFFSCREEN_DOCUMENT']
+  });
+  return contexts.length > 0;
 }
 
-function handleInboxPayload(path, data, uid, token) {
-  if (!data) return;
-
-  if (path === '/') {
-    for (const [key, msg] of Object.entries(data)) {
-      if (msg && msg.sender_id && msg.text) {
-        processIncomingMessage(key, msg, uid, token);
-      }
-    }
-  } else {
-    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-    if (data.sender_id && data.text) {
-      processIncomingMessage(cleanPath, data, uid, token);
-    }
-  }
-}
-
-async function processIncomingMessage(msgId, message, uid, token) {
-  const senderId = message.sender_id;
-  const text = message.text;
-  const timestamp = message.timestamp || Date.now();
-
+async function setupOffscreen() {
   try {
-    const contactsUrl = `${CONFIG.FIREBASE_DB_URL}/users/${uid}/contacts.json?auth=${token}`;
-    const contactsRes = await fetch(contactsUrl);
-    let contacts = [];
-    if (contactsRes.ok) {
-      contacts = await contactsRes.json() || [];
+    const state = await getStorageData(['qiko_id']);
+    if (!state.qiko_id) {
+      if (await hasOffscreenDocument()) {
+        await chrome.offscreen.closeDocument();
+      }
+      return;
     }
-    if (!contacts.includes(senderId)) {
-      contacts.push(senderId);
-      await fetch(contactsUrl, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(contacts)
-      });
-      await setStorageData({ qiko_contacts_updated: Date.now() });
-    }
-  } catch (err) {
-    console.error("Failed to automatically add sender to contacts list:", err);
-  }
 
-  const historyKey = `qiko_history_${senderId}`;
-  const localData = await getStorageData([historyKey, 'qiko_active_partner']);
-  const history = localData[historyKey] || [];
+    if (await hasOffscreenDocument()) return;
 
-  const isDuplicate = history.some(m => m.timestamp === timestamp && m.text === text);
-  if (!isDuplicate) {
-    history.push({
-      sender: senderId,
-      text: text,
-      timestamp: timestamp,
-      received: true
+    console.log("Creating offscreen document for background WebRTC...");
+    await chrome.offscreen.createDocument({
+      url: OFFSCREEN_DOCUMENT_PATH,
+      reasons: ['WEB_RTC'],
+      justification: 'Maintaining a background PeerJS WebRTC connection for direct messaging.'
     });
-    if (history.length > 100) {
-      history.shift();
-    }
-    await setStorageData({ [historyKey]: history });
-
-    const currentActivePartner = localData.qiko_active_partner;
-    const shouldNotify = !isPopupOpen || (currentActivePartner !== senderId);
-    if (shouldNotify) {
-      let displayName = senderId;
-      try {
-        const idRes = await fetch(`${CONFIG.FIREBASE_DB_URL}/qiko_ids/${senderId}.json?auth=${token}`);
-        if (idRes.ok) {
-          const senderUid = await idRes.json();
-          if (senderUid) {
-            const userRes = await fetch(`${CONFIG.FIREBASE_DB_URL}/users/${senderUid}.json?auth=${token}`);
-            if (userRes.ok) {
-              const senderProfile = await userRes.json();
-              if (senderProfile && senderProfile.username && senderProfile.username !== 'Guest') {
-                displayName = senderProfile.username;
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Failed to fetch sender profile for notification:", e);
-      }
-
-      const safeId = `qiko_notif_${senderId}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-      chrome.notifications.create(safeId, {
-        type: 'basic',
-        iconUrl: 'icons/logo-128.png',
-        title: `Qiko Message from ${displayName}`,
-        message: text,
-        priority: 2
-      });
-    }
-  }
-
-  const deleteUrl = `${CONFIG.FIREBASE_DB_URL}/inbox/${uid}/${msgId}.json?auth=${token}`;
-  try {
-    await fetch(deleteUrl, { method: 'DELETE' });
   } catch (err) {
-    console.error("Failed to delete processed message node:", err);
+    if (!err.message.includes('Only a single offscreen document may be created')) {
+      console.error("Failed to setup offscreen document:", err);
+    }
   }
 }
 
 chrome.alarms.create('qiko_keep_alive', { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'qiko_keep_alive') {
-    checkAndConnectStream();
+    checkPresence();
   }
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  checkAndConnectStream();
+  checkPresence();
+  setupOffscreen();
 });
 
 chrome.runtime.onInstalled.addListener(() => {
-  checkAndConnectStream();
+  checkPresence();
+  setupOffscreen();
 });
 
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.qiko_token || changes.qiko_user_id) {
-    checkAndConnectStream();
+    checkPresence();
   }
+  if (changes.qiko_id) {
+    setupOffscreen();
+  }
+
+  // Forward storage changes to the offscreen document
+  const mappedChanges = {};
+  for (const [key, val] of Object.entries(changes)) {
+    mappedChanges[key] = {
+      newValue: val.newValue,
+      oldValue: val.oldValue
+    };
+  }
+  chrome.runtime.sendMessage({
+    target: 'offscreen',
+    type: 'storageChanged',
+    changes: mappedChanges
+  }).catch(() => {
+    // Ignore errors when offscreen is closed/inactive
+  });
 });
 
 chrome.notifications.onClicked.addListener((notificationId) => {
@@ -348,10 +206,86 @@ chrome.notifications.onClicked.addListener((notificationId) => {
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name === "qiko_popup") {
     isPopupOpen = true;
+    chrome.storage.local.set({ qiko_popup_open: true });
     port.onDisconnect.addListener(() => {
       isPopupOpen = false;
+      chrome.storage.local.set({ qiko_popup_open: false });
     });
   }
 });
 
-checkAndConnectStream();
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'CHECK_OFFSCREEN') {
+    setupOffscreen().then(() => sendResponse({ success: true }));
+    return true;
+  }
+  if (message.type === 'OPEN_POPUP') {
+    if (chrome.action && typeof chrome.action.openPopup === 'function') {
+      chrome.action.openPopup().catch((err) => {
+        console.warn("openPopup failed, falling back to dashboard:", err);
+        chrome.tabs.create({ url: "screens/dashboard.html" });
+      });
+    } else {
+      chrome.tabs.create({ url: "screens/dashboard.html" });
+    }
+    sendResponse({ success: true });
+    return true;
+  }
+  if (message.target === 'background') {
+    if (message.type === 'getStorage') {
+      chrome.storage.local.get(message.keys, (result) => {
+        sendResponse(result);
+      });
+      return true; // async
+    }
+    if (message.type === 'setStorage') {
+      chrome.storage.local.set(message.items, () => {
+        sendResponse({ success: true });
+      });
+      return true; // async
+    }
+    if (message.type === 'showNotification') {
+      const showSystemNotification = () => {
+        const notifId = `qiko_notif_${message.senderId}_${Date.now()}`;
+        try {
+          chrome.notifications.create(notifId, {
+            type: 'basic',
+            iconUrl: chrome.runtime.getURL('icons/logo-128.png'),
+            title: `Qiko - ${message.displayName}`,
+            message: message.text,
+            priority: 2
+          });
+        } catch (err) {
+          console.error("[Background] Failed to create system notification:", err);
+        }
+      };
+
+      chrome.storage.local.get('qiko_theme', (result) => {
+        const theme = result.qiko_theme || 'system';
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs && tabs[0] && tabs[0].id) {
+            chrome.tabs.sendMessage(tabs[0].id, {
+              type: 'SHOW_TOAST',
+              senderName: message.displayName,
+              text: message.text,
+              theme: theme
+            }, (res) => {
+              if (chrome.runtime.lastError || !res || !res.success) {
+                showSystemNotification();
+              }
+            });
+          } else {
+            showSystemNotification();
+          }
+        });
+      });
+
+      sendResponse({ success: true });
+      return true;
+    }
+  }
+});
+
+// Initial presence and offscreen check
+checkPresence();
+setupOffscreen();
