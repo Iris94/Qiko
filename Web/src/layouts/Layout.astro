@@ -1,0 +1,247 @@
+---
+interface Props {
+  title?: string;
+  description?: string;
+}
+const {
+  title = 'Qiko — Zero Friction P2P Chat',
+  description = 'Secure, private peer-to-peer messaging directly in your browser. No servers. No accounts. Just a Qiko ID.',
+} = Astro.props;
+---
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title}</title>
+  <meta name="description" content={description} />
+  <link rel="icon" href="/logo.png" />
+  <script is:inline src="/peerjs.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&family=Inter:wght@400;500;600&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0&display=swap" rel="stylesheet" />
+
+  <style is:global>
+    /* ── Design tokens ───────────────────────────────────────── */
+    :root {
+      --bg:           #e5e9f0; /* Nord 5 */
+      --bg-alt:       #e5e9f0; /* Nord 5 - match body */
+      --surface:      #eceff4; /* Nord 6 - distinct card surface */
+      --surface-2:    #d8dee9; /* Nord 4 */
+      --border:       #d8dee9; /* Nord 4 */
+      --text:         #2e3440; /* Nord 0 */
+      --muted:        #4c566a; /* Nord 3 */
+      --primary:      #5e81ac; /* Nord 10 */
+      --primary-rgb:  94, 129, 172;
+      --primary-lt:   #81a1c1; /* Nord 9 */
+      --secondary:    #88c0d0; /* Nord 8 */
+      --accent:       #81a1c1; /* Nord 9 */
+      --error:        #bf616a; /* Nord 11 */
+      --success:      #a3be8c; /* Nord 14 */
+      --terminal-bg:  #2e3440; /* Nord 0 */
+      --terminal-2:   #3b4252; /* Nord 1 */
+      --radius-sm:    8px;
+      --radius-md:    12px;
+      --radius-lg:    16px;
+      --radius-xl:    24px;
+      --btn-primary-bg: #5e81ac; /* Nord 10 */
+      --btn-primary-text: #eceff4; /* Nord 6 */
+      --btn-outline-text: #5e81ac; /* Nord 10 */
+      --btn-outline-border: #5e81ac; /* Nord 10 */
+      --transition:   0.2s ease-in-out;
+    }
+
+    [data-theme="dark"] {
+      --bg:           #2e3440; /* Nord 0 */
+      --bg-alt:       #2e3440; /* Nord 0 - match body */
+      --surface:      #3b4252; /* Nord 1 - distinct card surface */
+      --surface-2:    #434c5e; /* Nord 2 */
+      --border:       #4c566a; /* Nord 3 */
+      --text:         #eceff4; /* Nord 6 */
+      --muted:        #d8dee9; /* Nord 4 */
+      --primary:      #88c0d0; /* Nord 8 */
+      --primary-rgb:  136, 192, 208;
+      --primary-lt:   #81a1c1; /* Nord 9 */
+      --secondary:    #8fbcbb; /* Nord 7 */
+      --accent:       #81a1c1; /* Nord 9 */
+      --error:        #bf616a; /* Nord 11 */
+      --success:      #a3be8c; /* Nord 14 */
+      --btn-primary-bg: #88c0d0; /* Nord 8 */
+      --btn-primary-text: #2e3440; /* Nord 0 */
+      --btn-outline-text: #eceff4; /* Nord 6 */
+      --btn-outline-border: #4c566a; /* Nord 3 */
+    }
+
+    /* ── Reset ───────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; font-size: 16px; }
+    body {
+      background: var(--color-bg, var(--bg));
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background var(--transition), color var(--transition);
+    }
+    img { display: block; max-width: 100%; }
+    a { color: inherit; text-decoration: none; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* ── Typography ──────────────────────────────────────────── */
+    .font-display { font-family: 'Hanken Grotesk', sans-serif; }
+
+    /* ── Layout helpers ──────────────────────────────────────── */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 clamp(1.5rem, 5vw, 4rem);
+    }
+
+    /* ── Glassmorphism ───────────────────────────────────────── */
+    .glass {
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    /* ── Cards ───────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+    }
+    .card-pad { padding: 2.5rem; }
+
+    /* ── Buttons ─────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: .5rem;
+      padding: 1rem 2.5rem;
+      border-radius: var(--radius-md);
+      font-family: 'Hanken Grotesk', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+    .btn-sm {
+      padding: 0.5rem 1.25rem;
+      font-size: 0.875rem;
+      border-radius: var(--radius-sm);
+    }
+    .btn-primary {
+      background: var(--btn-primary-bg);
+      color: var(--btn-primary-text);
+    }
+    .btn-primary:hover { filter: brightness(1.12); transform: translateY(-1px); }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-outline {
+      border: 2px solid var(--btn-outline-border);
+      color: var(--btn-outline-text);
+    }
+    .btn-outline:hover { background: var(--surface-2); }
+    .btn-ghost {
+      padding: .5rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      color: var(--primary);
+    }
+    .btn-ghost:hover { background: var(--surface-2); }
+
+    /* ── Icon chip ───────────────────────────────────────────── */
+    .icon-chip {
+      width: 3.5rem;
+      height: 3.5rem;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ── Material icons ──────────────────────────────────────── */
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+      line-height: 1;
+      vertical-align: middle;
+      user-select: none;
+    }
+
+    /* ── Pulse animation ─────────────────────────────────────── */
+    @keyframes pulse-ring {
+      0%   { transform: scale(1);   opacity: .6; }
+      50%  { transform: scale(1.4); opacity: 0; }
+      100% { transform: scale(1);   opacity: 0; }
+    }
+    .pulse-dot {
+      position: relative;
+      width: .5rem; height: .5rem;
+      border-radius: 50%;
+      background: var(--primary);
+      flex-shrink: 0;
+    }
+    .pulse-dot::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      background: var(--primary);
+      animation: pulse-ring 2s ease-out infinite;
+    }
+
+    /* ── Section spacing ─────────────────────────────────────── */
+    .section { padding: clamp(4rem, 8vw, 7rem) 0; }
+
+    /* ── Details / FAQ ───────────────────────────────────────── */
+    details > summary { list-style: none; }
+    details > summary::-webkit-details-marker { display: none; }
+  </style>
+</head>
+<body>
+  <slot />
+
+  <script>
+    const html = document.documentElement;
+
+    // ── Theme ───────────────────────────────────────────────
+    function applyTheme(theme: string) {
+      html.setAttribute('data-theme', theme);
+      const icon = document.getElementById('theme-icon');
+      if (icon) icon.textContent = theme === 'dark' ? 'light_mode' : 'dark_mode';
+    }
+
+    document.getElementById('theme-toggle')?.addEventListener('click', () => {
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      localStorage.setItem('qiko-theme', next);
+    });
+
+    const saved = localStorage.getItem('qiko-theme');
+    if (saved) {
+      applyTheme(saved);
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      applyTheme('dark');
+    }
+
+    // ── Smooth scroll ────────────────────────────────────────
+    document.querySelectorAll<HTMLAnchorElement>('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', e => {
+        const href = a.getAttribute('href');
+        const target = href ? document.querySelector(href) : null;
+        if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth' }); }
+      });
+    });
+
+    // ── FAQ accordion ────────────────────────────────────────
+    document.querySelectorAll('details').forEach(d => {
+      d.addEventListener('toggle', () => {
+        const icon = d.querySelector('.faq-chevron');
+        if (icon) icon.textContent = d.open ? 'expand_less' : 'expand_more';
+      });
+    });
+  </script>
+</body>
+</html>

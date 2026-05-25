@@ -1,4 +1,4 @@
-import { DOM_IDS } from './constants.js';
+import { DOM_IDS } from '../../../Logic/constants.js';
 
 /**
  * UI Manager Module for Qiko.
@@ -239,9 +239,12 @@ export function renderContacts(resolvedContacts, activePartnerId, onSelectContac
     }
     chip.appendChild(indicator);
 
+    const isDesktop = window.innerWidth >= 768;
     let displayLabel = contact.displayName || contact.id;
-    if (displayLabel.length > 12) {
+    if (!isDesktop && displayLabel.length > 12) {
       displayLabel = displayLabel.slice(0, 12) + '...';
+    } else if (isDesktop && displayLabel.length > 24) {
+      displayLabel = displayLabel.slice(0, 24) + '...';
     }
 
     const nameTextNode = document.createTextNode(displayLabel);

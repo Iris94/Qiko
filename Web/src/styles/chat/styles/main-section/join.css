@@ -1,0 +1,23 @@
+.join-section {
+    padding: 12px 8px;
+}
+
+.join-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.join-key-input {
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.03);
+    color: #fff;
+}
+
+.join-controls {
+    display: flex;
+    gap: 8px;
+}

@@ -1,15 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Qiko Logins</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../style.css">
-</head>
-<body>
+---
+import Layout from '../../layouts/Layout.astro';
+import '../../styles/chat/style.css';
+---
+
+<Layout title="Qiko — Authentication">
+  <div class="chat-page-wrapper">
+    <!-- SCREEN 1: LOADING SCREEN -->
     <div id="screen-loading" class="container hide">
         <div class="loading-wrapper">
             <div class="spinner-logo">
@@ -30,6 +26,7 @@
         </div>
     </div>
 
+    <!-- SCREEN 2: PROFILE SETUP (CREATE ID) -->
     <div id="screen-profile-setup" class="container hide">
         <div class="screen-header justify-end">
             <span class="status-badge">
@@ -87,6 +84,7 @@
         </div>
     </div>
 
+    <!-- SCREEN 3: EMAIL VERIFICATION -->
     <div id="screen-verification" class="container hide">
         <div class="screen-header justify-end">
             <span class="status-badge">
@@ -113,6 +111,7 @@
         </div>
     </div>
 
+    <!-- SCREEN 4: SIGN IN -->
     <div id="screen-sign-in" class="container hide">
         <div class="screen-header">
             <button type="button" id="btn-back-to-start" class="btn-icon-back" title="Back">
@@ -149,8 +148,48 @@
             <span class="footer-text"></span>
         </div>
     </div>
+  </div>
+</Layout>
 
-    <script src="../lib/peerjs.min.js"></script>
-    <script type="module" src="../popup/popup.js"></script>
-</body>
-</html>
+<script>
+  import '../../scripts/popup.js';
+</script>
+
+<style>
+  .chat-page-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 40px 24px;
+    background-color: var(--color-bg) !important;
+  }
+  .container {
+    max-width: 480px;
+    width: 100%;
+    height: auto !important;
+    min-height: 520px;
+    background: var(--color-surface) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    padding: 40px 32px !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: var(--color-text) !important;
+  }
+  .setup-title {
+    font-size: 24px !important;
+    margin-bottom: 16px !important;
+    color: var(--color-text) !important;
+  }
+  .form-control {
+    height: 42px !important;
+    font-size: 14.5px !important;
+  }
+  .btn {
+    height: 46px !important;
+    font-size: 14.5px !important;
+  }
+</style>

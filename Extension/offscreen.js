@@ -1,5 +1,5 @@
-import * as chatEngine from './lib/chat-engine.js';
-import * as firebaseDb from './lib/firebase-db.js';
+import * as chatEngine from './Logic/chat-engine.js';
+import * as firebaseDb from './Logic/firebase-db.js';
 
 let myQikoId = null;
 let myUid = null;

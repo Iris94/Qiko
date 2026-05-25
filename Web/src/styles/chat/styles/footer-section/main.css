@@ -1,0 +1,18 @@
+.section-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.settings-text {
+    font-size: 14px;
+    color: #ffffff;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.settings-text:hover {
+    opacity: 1;
+}

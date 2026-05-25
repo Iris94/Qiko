@@ -1,0 +1,191 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import '../../styles/chat/style.css';
+---
+
+<Layout title="Qiko — Chat Dashboard">
+  <div class="chat-dashboard-page-wrapper">
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-top">
+                <button type="button" id="nav-btn-profile" class="sidebar-btn" title="Profile">
+                    <svg class="icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                </button>
+                <button type="button" id="nav-btn-home" class="sidebar-btn active" title="Dashboard">
+                    <svg class="icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                </button>
+                <button type="button" id="nav-btn-connect" class="sidebar-btn" title="Connect">
+                    <svg class="icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="sidebar-bottom">
+                <button type="button" id="sidebar-theme-toggle" class="sidebar-btn" title="Toggle Theme">
+                    <svg id="theme-icon-svg" class="icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    </svg>
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div id="scene-chat-dashboard" class="scene-view">
+                <div class="scene-container">
+                    <div class="dashboard-header-main">
+                        <button type="button" id="btn-connect" class="btn-connect-large">Connect +</button>
+                        <span class="brand-center-text">Qiko</span>
+                        <div class="header-right-group">
+                            <span id="dashboard-user-display" class="user-display-name-large">Guest</span>
+                            <span class="status-dot"></span>
+                        </div>
+                    </div>
+
+                    <div class="active-chats-bar hide" id="active-chats-bar">
+                        <div class="active-chats-scroll" id="active-chats-list"></div>
+                    </div>
+
+                    <div id="chat-empty-state" class="chat-empty-wrapper">
+                        <h3 class="empty-title">No connections currently</h3>
+                        <p class="empty-subtitle">Add them by clicking connect button or by clicking + button in sidebar.</p>
+                    </div>
+
+                    <div class="chat-main-section hide" id="chat-main-section">
+                        <div class="chat-partner-header">
+                            <div style="width: 55px;"></div>
+                            <h4 id="chat-partner-name" class="chat-partner-title">&mdash; Choose Contact &mdash;</h4>
+                            <button type="button" id="btn-remove-connection" class="btn-remove-conn" title="Remove Connection">Remove</button>
+                        </div>
+                        <div class="chat-messages-log" id="chat-messages-log"></div>
+                        <div class="chat-input-bar">
+                            <textarea id="chat-message-input" class="chat-input-field" placeholder="Type a message..." rows="1"></textarea>
+                            <button type="button" id="btn-send-message" class="btn-send-svg" title="Send">
+                                <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-footer-bar">
+                        <span class="footer-left-copyright footer-text"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="scene-user-profile" class="scene-view hide">
+                <div class="scene-container-profile">
+                    <div>
+                        <h2 class="setup-title">User</h2>
+                        <form id="form-profile-edit" class="setup-form hide">
+                            <div class="form-group">
+                                <label>Qiko ID</label>
+                                <input type="text" id="profile-edit-id" class="form-control font-mono" readonly style="background-color: var(--color-surface); font-weight: 700; color: var(--color-primary);">
+                            </div>
+                            <div class="form-group">
+                                <label for="profile-edit-email">Email</label>
+                                <input type="email" id="profile-edit-email" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="profile-edit-username">Username</label>
+                                <input type="text" id="profile-edit-username" class="form-control" placeholder="Nickname">
+                            </div>
+                            <div id="profile-edit-success-msg" class="status-badge" style="background-color: rgba(163, 190, 140, 0.15); color: #a3be8c; display: none; margin-top: 8px; width: 100%; justify-content: center;">Changes saved successfully</div>
+                            <div id="profile-edit-error-msg" class="error-text hide" style="margin-top: 6px;"></div>
+                            <button type="submit" id="btn-profile-save" class="btn btn-primary w-100 mt-16">Save Changes</button>
+                        </form>
+                        <form id="form-profile-upgrade" class="setup-form hide">
+                            <p class="setup-description">Add an email and password to secure your account and sync contacts on other devices.</p>
+                            <div class="form-group">
+                                <label for="profile-upgrade-email">Email</label>
+                                <input type="email" id="profile-upgrade-email" class="form-control" placeholder="name@example.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="profile-upgrade-password">Password</label>
+                                <input type="password" id="profile-upgrade-password" class="form-control" placeholder="Minimum 6 characters" required minlength="6">
+                            </div>
+                            <div class="form-group">
+                                <label for="profile-upgrade-username">Username (Optional)</label>
+                                <input type="text" id="profile-upgrade-username" class="form-control" placeholder="Nickname">
+                            </div>
+                            <div id="profile-upgrade-error-msg" class="error-text hide" style="margin-top: 6px;"></div>
+                            <button type="submit" id="btn-profile-upgrade-submit" class="btn btn-primary w-100 mt-16">Register / Link Profile</button>
+                        </form>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 20px;">
+                        <button type="button" id="btn-profile-signout" class="btn btn-signout w-100">Sign Out</button>
+                        <button type="button" id="btn-profile-delete" class="btn btn-delete-profile w-100">Delete Profile</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="scene-connect" class="scene-view hide">
+                <div class="scene-container">
+                    <div class="connect-section" style="margin-bottom: 10px;">
+                        <h3 class="setup-title">Add New Connection</h3>
+                        <p class="setup-description">Insert the Qiko ID you received and click add.</p>
+                        <div style="display: flex; gap: 8px; width: 100%;">
+                            <input type="text" id="connect-input-id" class="form-control" placeholder="e.g. qx-xxxx-xxxx-seq" style="flex: 1;">
+                            <button type="button" id="btn-connect-apply" class="btn btn-primary btn-add-conn" style="width: auto;">Add +</button>
+                        </div>
+                        <div id="connect-error-msg" class="error-text hide" style="margin-top: 6px;"></div>
+                    </div>
+                    <div class="setup-divider" style="margin: 14px 0;"></div>
+                    <div class="connect-section">
+                        <h3 class="setup-title">Share Your Invite</h3>
+                        <button type="button" id="btn-copy-magic-link" class="btn btn-outline w-100">Copy Magic Invite Link</button>
+                        <p class="setup-description" style="margin-top: 16px; margin-bottom: 6px;">Or copy your Qiko ID manually:</p>
+                        <div class="id-display-fullwidth" style="margin-bottom: 0;">
+                            <input type="text" id="connect-my-id" class="form-control font-mono id-input-full" style="padding: 8px 40px 8px 10px !important;" readonly value="qx-xxxx-xxxx-0">
+                            <button type="button" id="btn-connect-copy-my-id" class="btn-copy-in" title="Copy Qiko ID">
+                                <svg class="icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                <span id="connect-copy-tooltip" class="copy-tooltip" style="font-size: 8px;">Copy</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="footer-wrapper" style="margin-top: auto; padding-top: 12px;">
+                        <span class="footer-text"></span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import '../../scripts/popup.js';
+</script>
+
+<style>
+  .chat-dashboard-page-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100vw;
+    height: 100vh;
+    padding: 0;
+    background-color: var(--color-bg) !important;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+  .app-layout {
+    width: 100% !important;
+    max-width: 1520px !important;
+    height: 100vh !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: hidden;
+  }
+  @media (min-width: 768px) {
+    .app-layout {
+      height: 88vh !important;
+      border: 1px solid var(--color-border) !important;
+      border-radius: 4px !important;
+    }
+  }
+</style>

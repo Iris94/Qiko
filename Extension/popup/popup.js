@@ -1,9 +1,9 @@
-import { CONFIG } from '../config.js';
-import { DOM_IDS } from '../lib/constants.js';
-import * as firebaseAuth from '../lib/firebase-auth.js';
-import * as firebaseDb from '../lib/firebase-db.js';
+import { CONFIG } from '../Logic/config.js';
+import { DOM_IDS } from '../Logic/constants.js';
+import * as firebaseAuth from '../Logic/firebase-auth.js';
+import * as firebaseDb from '../Logic/firebase-db.js';
 import * as uiManager from '../lib/ui-manager.js';
-import * as chatEngine from '../lib/chat-engine.js';
+import * as chatEngine from '../Logic/chat-engine.js';
 
 let tempGeneratedId = null;
 let tempRegisterEmail = '';

@@ -1,4 +1,4 @@
-import { CONFIG } from '../config.js';
+import { CONFIG } from './config.js';
 
 /**
  * Firebase Identity Toolkit REST APIs for authentication flows.

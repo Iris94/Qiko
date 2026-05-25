@@ -1,0 +1,11 @@
+{
+  "name": "qiko-monorepo",
+  "version": "1.0.0",
+  "description": "Monorepo for Qiko Chrome Extension and Web App sharing core logic",
+  "scripts": {
+    "sync-logic": "node sync-logic.js",
+    "watch-logic": "node sync-logic.js --watch",
+    "dev:web": "npm run dev --prefix Web",
+    "build:web": "npm run build --prefix Web"
+  }
+}
