@@ -722,7 +722,8 @@ async function initDashboardScreen() {
   } else {
     // Fallback context: Initialize PeerJS in-page
     try {
-      chatEngine.initChatEngine(state.qiko_id + '-web', {
+      const randomIdSuffix = Math.random().toString(36).substring(2, 6);
+      chatEngine.initChatEngine(state.qiko_id + '-web-' + randomIdSuffix, {
         onMessage: async (senderId, data) => {
           console.log(`Received message from ${senderId}:`, data);
           const historyKey = `qiko_history_${senderId}`;
@@ -761,7 +762,7 @@ async function initDashboardScreen() {
           console.log(`P2P Status with ${peerId}:`, status);
           loadAndRenderContacts();
         }
-      });
+      }, state.qiko_token);
     } catch (err) {
       console.error("Failed to initialize PeerJS chat engine in-page:", err);
     }

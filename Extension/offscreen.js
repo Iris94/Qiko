@@ -60,8 +60,8 @@ async function init() {
   }
 
   console.log("[Offscreen] Initializing Chat Engine with ID:", myQikoId);
-  try {
-    chatEngine.initChatEngine(myQikoId + '-ext', {
+    const randomIdSuffix = Math.random().toString(36).substring(2, 6);
+    chatEngine.initChatEngine(myQikoId + '-ext-' + randomIdSuffix, {
       onMessage: async (senderId, data) => {
         console.log(`[Offscreen] Received message from ${senderId}:`, data);
         const historyKey = `qiko_history_${senderId}`;
@@ -133,7 +133,7 @@ async function init() {
         console.log(`[Offscreen] P2P Status with ${peerId}:`, status);
         storage.set({ qiko_contacts_updated: Date.now() });
       }
-    });
+    }, myToken);
   } catch (err) {
     console.error("[Offscreen] Failed to initialize PeerJS chat engine:", err);
   }

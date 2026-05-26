@@ -1,5 +1,10 @@
+import { getUidByQikoId, registerPresence, unregisterPresence, getActivePeers } from './firebase-db.js';
+
 let peer = null;
+let dbToken = null; // Store database token for active peer queries
+let presenceInterval = null; // Periodic presence registration
 const activeConnections = new Map(); // peerId -> DataConnection
+const pendingWrappers = new Set(); // active multi-connect attempts
 
 // Callbacks
 let onMessageCallback = null;
@@ -9,16 +14,25 @@ let onPeerErrorCallback = null;
 /**
  * Initialize the PeerJS instance.
  *
- * @param {string} myQikoId - The user's own Qiko ID.
+ * @param {string} myQikoId - The user's own Qiko ID (can include client suffixes).
  * @param {Object} callbacks - Callback functions for Peer events.
+ * @param {string|null} token - Optional Firebase ID token for presence registration.
  */
-export function initChatEngine(myQikoId, callbacks = {}) {
+export function initChatEngine(myQikoId, callbacks = {}, token = null) {
+  dbToken = token;
+
   if (peer && !peer.destroyed) {
     if (peer.id === myQikoId) {
       console.log("PeerJS already initialized for Qiko ID:", myQikoId);
       return peer;
     }
     peer.destroy();
+  }
+
+  // Clear any existing intervals
+  if (presenceInterval) {
+    clearInterval(presenceInterval);
+    presenceInterval = null;
   }
 
   onMessageCallback = callbacks.onMessage || null;
@@ -45,6 +59,13 @@ export function initChatEngine(myQikoId, callbacks = {}) {
     // If it's a peer-unavailable error, it's benign during our multi-connect attempts
     if (err.type === 'peer-unavailable') {
       console.log("PeerJS: Target peer is unavailable (benign routing event).");
+      
+      // Parse target peer ID from error message to notify MultiConnectionWrapper
+      const match = err.message.match(/Could not connect to peer (.+)$/);
+      if (match) {
+        const targetId = match[1].trim();
+        triggerConnectionFailure(targetId, err);
+      }
       return;
     }
     console.error("PeerJS global error:", err);
@@ -58,9 +79,57 @@ export function initChatEngine(myQikoId, callbacks = {}) {
     peer.reconnect();
   });
 
-  peer.on('close', () => {
+  peer.on('close', async () => {
     console.log("Peer instance closed.");
+    if (presenceInterval) {
+      clearInterval(presenceInterval);
+      presenceInterval = null;
+    }
+    if (dbToken && peer) {
+      try {
+        const cleanId = peer.id.replace(/-ext-.*$/, '').replace(/-web-.*$/, '').replace(/-ext$/, '').replace(/-web$/, '');
+        const uid = await getUidByQikoId(cleanId, dbToken);
+        if (uid) {
+          await unregisterPresence(uid, peer.id, dbToken);
+          console.log("Presence unregistered successfully.");
+        }
+      } catch (e) {
+        // Safe to ignore on close
+      }
+    }
     activeConnections.clear();
+  });
+
+  peer.on('open', async (id) => {
+    console.log("My PeerJS ID is:", id);
+    if (dbToken) {
+      try {
+        const cleanId = id.replace(/-ext-.*$/, '').replace(/-web-.*$/, '').replace(/-ext$/, '').replace(/-web$/, '');
+        const uid = await getUidByQikoId(cleanId, dbToken);
+        if (uid) {
+          await registerPresence(uid, id, dbToken);
+          console.log("Presence registered successfully for peer ID:", id);
+        }
+      } catch (e) {
+        console.warn("Could not register presence in Firebase:", e);
+      }
+      
+      // Setup periodic presence refresh (every 2 minutes)
+      if (presenceInterval) clearInterval(presenceInterval);
+      presenceInterval = setInterval(async () => {
+        if (peer && !peer.destroyed && dbToken) {
+          try {
+            const cleanId = peer.id.replace(/-ext-.*$/, '').replace(/-web-.*$/, '').replace(/-ext$/, '').replace(/-web$/, '');
+            const uid = await getUidByQikoId(cleanId, dbToken);
+            if (uid) {
+              await registerPresence(uid, peer.id, dbToken);
+            }
+          } catch (e) {
+            // Ignore periodic registration errors
+          }
+        }
+      }, 2 * 60 * 1000);
+    }
   });
 
   return peer;
@@ -73,7 +142,7 @@ export function initChatEngine(myQikoId, callbacks = {}) {
  */
 function setupConnectionListeners(conn) {
   const fullPeerId = conn.peer;
-  const cleanPeerId = fullPeerId.replace(/-ext$/, '').replace(/-web$/, '');
+  const cleanPeerId = fullPeerId.replace(/-ext-.*$/, '').replace(/-web-.*$/, '').replace(/-ext$/, '').replace(/-web$/, '');
   activeConnections.set(cleanPeerId, conn);
 
   conn.on('open', () => {
@@ -119,8 +188,9 @@ class MultiConnectionWrapper {
     this.open = false;
     this.activeConn = null;
     this.listeners = { open: [], error: [] };
+    this.failedTargets = new Set();
 
-    let failedCount = 0;
+    pendingWrappers.add(this);
 
     for (const conn of conns) {
       conn.on('open', () => {
@@ -131,6 +201,7 @@ class MultiConnectionWrapper {
         }
         this.open = true;
         this.activeConn = conn;
+        pendingWrappers.delete(this);
         
         // Register the working connection via our standard listeners
         setupConnectionListeners(conn);
@@ -140,12 +211,16 @@ class MultiConnectionWrapper {
       });
 
       conn.on('error', (err) => {
-        failedCount++;
-        // If all connection attempts failed, notify error listeners
-        if (failedCount === conns.length && !this.open) {
-          this.listeners.error.forEach(cb => cb(err));
-        }
+        this.handleFailure(conn.peer, err);
       });
+    }
+  }
+
+  handleFailure(targetId, err) {
+    this.failedTargets.add(targetId);
+    if (this.failedTargets.size >= this.conns.length && !this.open) {
+      pendingWrappers.delete(this);
+      this.listeners.error.forEach(cb => cb(err || new Error("All routing targets failed.")));
     }
   }
 
@@ -170,18 +245,28 @@ class MultiConnectionWrapper {
   }
 }
 
+function triggerConnectionFailure(targetId, err) {
+  for (const wrapper of pendingWrappers) {
+    for (const conn of wrapper.conns) {
+      if (conn.peer === targetId) {
+        wrapper.handleFailure(targetId, err);
+      }
+    }
+  }
+}
+
 /**
  * Connect to a target peer.
  *
  * @param {string} peerId
- * @returns {DataConnection|MultiConnectionWrapper}
+ * @returns {Promise<MultiConnectionWrapper>}
  */
-export function connectToPeer(peerId) {
+export async function connectToPeer(peerId) {
   if (!peer || peer.destroyed) {
     throw new Error("Chat engine is not initialized.");
   }
 
-  const cleanPeerId = peerId.replace(/-ext$/, '').replace(/-web$/, '');
+  const cleanPeerId = peerId.replace(/-ext-.*$/, '').replace(/-web-.*$/, '').replace(/-ext$/, '').replace(/-web$/, '');
 
   // If already connected and open, return existing connection
   if (activeConnections.has(cleanPeerId)) {
@@ -192,11 +277,34 @@ export function connectToPeer(peerId) {
   }
 
   console.log("Initiating WebRTC connection to peer suffixes for:", cleanPeerId);
-  const connExt = peer.connect(cleanPeerId + '-ext', { reliable: true });
-  const connWeb = peer.connect(cleanPeerId + '-web', { reliable: true });
-  const connRaw = peer.connect(cleanPeerId, { reliable: true });
+  
+  let targets = [];
+  if (dbToken) {
+    try {
+      const uid = await getUidByQikoId(cleanPeerId, dbToken);
+      if (uid) {
+        const activePeers = await getActivePeers(uid, dbToken);
+        if (activePeers && activePeers.length > 0) {
+          targets.push(...activePeers);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not query active peers from Firebase (falling back to suffixes):", e);
+    }
+  }
 
-  const wrapper = new MultiConnectionWrapper(cleanPeerId, [connExt, connWeb, connRaw]);
+  // Fallback default suffixes
+  targets.push(cleanPeerId + '-ext');
+  targets.push(cleanPeerId + '-web');
+  targets.push(cleanPeerId);
+
+  // De-duplicate targets
+  targets = [...new Set(targets)];
+
+  console.log("Connecting to target peer IDs:", targets);
+
+  const conns = targets.map(t => peer.connect(t, { reliable: true }));
+  const wrapper = new MultiConnectionWrapper(cleanPeerId, conns);
   return wrapper;
 }
 
@@ -208,12 +316,12 @@ export function connectToPeer(peerId) {
  * @param {string} myQikoId
  * @returns {Promise<Object>} Resolves with the payload when sent.
  */
-export function sendMessage(peerId, text, myQikoId) {
+export async function sendMessage(peerId, text, myQikoId) {
   let conn = activeConnections.get(peerId);
 
   // If connection is not active, try to connect first
   if (!conn || !conn.open) {
-    conn = connectToPeer(peerId);
+    conn = await connectToPeer(peerId);
   }
 
   const payload = {
@@ -225,7 +333,7 @@ export function sendMessage(peerId, text, myQikoId) {
 
   if (conn.open) {
     conn.send(payload);
-    return Promise.resolve(payload);
+    return payload;
   } else {
     return new Promise((resolve, reject) => {
       const onOpen = () => {
@@ -248,8 +356,23 @@ export function sendMessage(peerId, text, myQikoId) {
 /**
  * Disconnect and destroy the Peer instance.
  */
-export function disconnectChatEngine() {
+export async function disconnectChatEngine() {
+  if (presenceInterval) {
+    clearInterval(presenceInterval);
+    presenceInterval = null;
+  }
   if (peer) {
+    if (dbToken) {
+      try {
+        const cleanId = peer.id.replace(/-ext-.*$/, '').replace(/-web-.*$/, '').replace(/-ext$/, '').replace(/-web$/, '');
+        const uid = await getUidByQikoId(cleanId, dbToken);
+        if (uid) {
+          await unregisterPresence(uid, peer.id, dbToken);
+        }
+      } catch (e) {
+        // Safe to ignore
+      }
+    }
     peer.destroy();
     peer = null;
   }
