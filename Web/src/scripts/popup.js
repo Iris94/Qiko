@@ -1,5 +1,4 @@
 import { CONFIG } from '../../../Logic/config.js';
-import { DOM_IDS } from '../../../Logic/constants.js';
 import * as firebaseAuth from '../../../Logic/firebase-auth.js';
 import * as firebaseDb from '../../../Logic/firebase-db.js';
 import * as uiManager from './ui-manager.js';
@@ -24,9 +23,15 @@ const storage = {
       const keyList = Array.isArray(keys) ? keys : [keys];
       for (const k of keyList) {
         const val = localStorage.getItem(k);
-        if (val === 'true') result[k] = true;
-        else if (val === 'false') result[k] = false;
-        else result[k] = val;
+        if (val !== null) {
+          try {
+            result[k] = JSON.parse(val);
+          } catch (e) {
+            result[k] = val;
+          }
+        } else {
+          result[k] = undefined;
+        }
       }
       return result;
     }
@@ -38,7 +43,7 @@ const storage = {
       });
     } else {
       for (const [k, v] of Object.entries(items)) {
-        localStorage.setItem(k, v);
+        localStorage.setItem(k, JSON.stringify(v));
       }
     }
   },
@@ -350,7 +355,7 @@ async function initLoginsScreen() {
         console.error("Anonymous sign in failed:", err);
         await uiManager.showCustomAlert("Failed to initialize Guest session. Try again.");
         btnSetupSkip.disabled = false;
-        btnSetupSkip.textContent = 'Continue without registering';
+        btnSetupSkip.textContent = 'Continue';
       }
     });
   }
@@ -673,7 +678,8 @@ async function initDashboardScreen() {
         
         const historyKey = `qiko_history_${selectedPartnerId}`;
         const historyData = await storage.get(historyKey);
-        const history = historyData[historyKey] || [];
+        const rawHistory = historyData[historyKey];
+        const history = Array.isArray(rawHistory) ? rawHistory : [];
         uiManager.renderChatLog(history, state.qiko_id);
       });
     } catch (err) {
@@ -700,7 +706,8 @@ async function initDashboardScreen() {
 
     const historyKey = `qiko_history_${partnerId}`;
     const historyData = await storage.get(historyKey);
-    const history = historyData[historyKey] || [];
+    const rawHistory = historyData[historyKey];
+    const history = Array.isArray(rawHistory) ? rawHistory : [];
     uiManager.renderChatLog(history, state.qiko_id);
   }
 
@@ -715,12 +722,13 @@ async function initDashboardScreen() {
   } else {
     // Fallback context: Initialize PeerJS in-page
     try {
-      chatEngine.initChatEngine(state.qiko_id, {
+      chatEngine.initChatEngine(state.qiko_id + '-web', {
         onMessage: async (senderId, data) => {
           console.log(`Received message from ${senderId}:`, data);
           const historyKey = `qiko_history_${senderId}`;
           const historyData = await storage.get(historyKey);
-          const history = historyData[historyKey] || [];
+          const rawHistory = historyData[historyKey];
+          const history = Array.isArray(rawHistory) ? rawHistory : [];
           
           const isDuplicate = history.some(m => m.timestamp === data.timestamp && m.text === data.text);
           if (!isDuplicate) {
@@ -862,7 +870,8 @@ async function initDashboardScreen() {
     };
 
     const historyData = await storage.get(historyKey);
-    const history = historyData[historyKey] || [];
+    const rawHistory = historyData[historyKey];
+    const history = Array.isArray(rawHistory) ? rawHistory : [];
     history.push(sentMsg);
     if (history.length > 100) history.shift();
     await storage.set({ [historyKey]: history });
@@ -1064,8 +1073,12 @@ function initProfileTab(state) {
             window.location.href = "/chat/logins?flow=pending_verification";
           }
         }
-      }).catch(err => {
-        console.error("Failed to check user info on profile tab load:", err);
+      }).catch(async (err) => {
+        console.warn("Failed to check user info on profile tab load:", err.message || err);
+        if (err.message && err.message.includes("INVALID_ID_TOKEN")) {
+          await storage.remove('qiko_token');
+          state.qiko_token = null;
+        }
       });
     }
 
@@ -1200,7 +1213,7 @@ function initConnectTab(state) {
       const inputEl = document.getElementById('connect-input-id');
       if (!inputEl) return;
 
-      const targetId = inputEl.value.trim();
+      let targetId = inputEl.value.trim();
       if (!targetId) return;
 
       uiManager.clearError('connectErrorMsg');
@@ -1209,8 +1222,17 @@ function initConnectTab(state) {
       btnApply.textContent = 'Adding...';
 
       try {
+        if (targetId.includes('@')) {
+          const emailHash = await firebaseDb.hashEmail(targetId);
+          const resolvedQikoId = await firebaseDb.getQikoIdByEmail(emailHash, state.qiko_token);
+          if (!resolvedQikoId) {
+            throw new Error(`No user found registered with email: ${targetId}`);
+          }
+          targetId = resolvedQikoId;
+        }
+
         if (targetId === state.qiko_id) {
-          throw new Error("You cannot add your own Qiko ID.");
+          throw new Error("You cannot add your own Qiko ID/email.");
         }
 
         const targetUid = await firebaseDb.getUidByQikoId(targetId, state.qiko_token);
@@ -1225,7 +1247,7 @@ function initConnectTab(state) {
         }
 
         if (contactsList.includes(targetId)) {
-          throw new Error(`Qiko ID ${targetId} is already in your contacts.`);
+          throw new Error(`Connection ${targetId} is already in your contacts.`);
         }
 
         contactsList.push(targetId);
@@ -1248,10 +1270,30 @@ function initConnectTab(state) {
   }
 }
 
+function initPasswordToggles() {
+  document.querySelectorAll('.btn-toggle-password').forEach(btn => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      const targetId = btn.getAttribute('data-target');
+      const input = document.getElementById(targetId);
+      if (!input) return;
+
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.innerHTML = `<svg class="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+      } else {
+        input.type = 'password';
+        btn.innerHTML = `<svg class="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+      }
+    };
+  });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.connect) {
     chrome.runtime.connect({ name: "qiko_popup" });
   }
+  initPasswordToggles();
   await initThemeSwitcher();
   injectFooters();
   updateConnectionStatus();

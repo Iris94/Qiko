@@ -62,18 +62,6 @@ export const DB_ENDPOINTS = {
   emailHash: (emailHash) => `${CONFIG.FIREBASE_DB_URL}/emails/${emailHash}.json`,
 
   /**
-   * Send messages to a recipient, or pull and delete them from the queue.
-   * Path: /inbox/{uid}.json
-   */
-  inbox: (uid) => `${CONFIG.FIREBASE_DB_URL}/inbox/${uid}.json`,
-
-  /**
-   * Inbox message delete endpoint for a specific message ID.
-   * Path: /inbox/{uid}/{msgId}.json
-   */
-  inboxMessage: (uid, msgId) => `${CONFIG.FIREBASE_DB_URL}/inbox/${uid}/${msgId}.json`,
-
-  /**
    * Access or increment the global counter of registered users.
    * Path: /user_count.json
    */

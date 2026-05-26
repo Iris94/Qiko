@@ -61,7 +61,7 @@ async function init() {
 
   console.log("[Offscreen] Initializing Chat Engine with ID:", myQikoId);
   try {
-    chatEngine.initChatEngine(myQikoId, {
+    chatEngine.initChatEngine(myQikoId + '-ext', {
       onMessage: async (senderId, data) => {
         console.log(`[Offscreen] Received message from ${senderId}:`, data);
         const historyKey = `qiko_history_${senderId}`;

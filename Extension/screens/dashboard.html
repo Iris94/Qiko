@@ -111,7 +111,12 @@
                             </div>
                             <div class="form-group">
                                 <label for="profile-upgrade-password">Password</label>
-                                <input type="password" id="profile-upgrade-password" class="form-control" placeholder="Minimum 6 characters" required minlength="6">
+                                <div class="password-input-wrapper">
+                                    <input type="password" id="profile-upgrade-password" class="form-control" placeholder="Minimum 6 characters" required minlength="6">
+                                    <button type="button" class="btn-toggle-password" data-target="profile-upgrade-password" title="Toggle password visibility">
+                                        <svg class="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                    </button>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label for="profile-upgrade-username">Username (Optional)</label>
@@ -132,9 +137,9 @@
                 <div class="scene-container">
                     <div class="connect-section" style="margin-bottom: 10px;">
                         <h3 class="setup-title">Add New Connection</h3>
-                        <p class="setup-description">Insert the Qiko ID you received and click add.</p>
+                        <p class="setup-description">Insert your friend's Qiko ID or registered email address and click add.</p>
                         <div style="display: flex; gap: 8px; width: 100%;">
-                            <input type="text" id="connect-input-id" class="form-control" placeholder="e.g. qx-xxxx-xxxx-seq" style="flex: 1; height: 34px;">
+                            <input type="text" id="connect-input-id" class="form-control" placeholder="Qiko ID or email address" style="flex: 1; height: 34px;">
                             <button type="button" id="btn-connect-apply" class="btn btn-primary" style="width: auto; height: 34px; font-size: 12px; padding: 0 16px;">Add +</button>
                         </div>
                         <div id="connect-error-msg" class="error-text hide" style="margin-top: 6px;"></div>

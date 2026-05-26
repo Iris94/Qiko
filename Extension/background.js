@@ -126,7 +126,10 @@ async function setupOffscreen() {
       justification: 'Maintaining a background PeerJS WebRTC connection for direct messaging.'
     });
   } catch (err) {
-    if (!err.message.includes('Only a single offscreen document may be created')) {
+    if (
+      !err.message.includes('Only a single offscreen document may be created') &&
+      !err.message.includes('No current offscreen document')
+    ) {
       console.error("Failed to setup offscreen document:", err);
     }
   }

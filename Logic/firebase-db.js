@@ -72,6 +72,18 @@ export async function isEmailRegistered(emailHash, token) {
 }
 
 /**
+ * Look up the Qiko ID associated with a hashed email.
+ *
+ * @param {string} emailHash
+ * @param {string} token
+ * @returns {Promise<string|null>}
+ */
+export async function getQikoIdByEmail(emailHash, token) {
+  const data = await callApi(DB_ENDPOINTS.emailHash(emailHash), 'GET', null, token);
+  return data ? data.qiko_user_id : null;
+}
+
+/**
  * Register a mapping between hashed email and Qiko ID / Firebase UID.
  *
  * @param {string} emailHash
@@ -191,16 +203,4 @@ export async function getContacts(uid, token) {
 export async function updateContacts(uid, contactsList, token) {
   const url = `${DB_ENDPOINTS.user(uid).replace('.json', '')}/contacts.json`;
   return await callApi(url, 'PUT', contactsList, token);
-}
-
-/**
- * Delivery queue - push a message payload to recipient's inbox.
- *
- * @param {string} recipientUid
- * @param {Object} messagePayload
- * @param {string} token
- * @returns {Promise<any>}
- */
-export async function pushMessageToInbox(recipientUid, messagePayload, token) {
-  return await callApi(DB_ENDPOINTS.inbox(recipientUid), 'POST', messagePayload, token);
 }

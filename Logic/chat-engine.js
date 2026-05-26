@@ -42,6 +42,11 @@ export function initChatEngine(myQikoId, callbacks = {}) {
   });
 
   peer.on('error', (err) => {
+    // If it's a peer-unavailable error, it's benign during our multi-connect attempts
+    if (err.type === 'peer-unavailable') {
+      console.log("PeerJS: Target peer is unavailable (benign routing event).");
+      return;
+    }
     console.error("PeerJS global error:", err);
     if (onPeerErrorCallback) {
       onPeerErrorCallback(err);
@@ -67,69 +72,132 @@ export function initChatEngine(myQikoId, callbacks = {}) {
  * @param {DataConnection} conn
  */
 function setupConnectionListeners(conn) {
-  const peerId = conn.peer;
-  activeConnections.set(peerId, conn);
+  const fullPeerId = conn.peer;
+  const cleanPeerId = fullPeerId.replace(/-ext$/, '').replace(/-web$/, '');
+  activeConnections.set(cleanPeerId, conn);
 
   conn.on('open', () => {
-    console.log("Data connection opened with:", peerId);
+    console.log("Data connection opened with:", cleanPeerId);
     if (onConnectionStateChangeCallback) {
-      onConnectionStateChangeCallback(peerId, 'open');
+      onConnectionStateChangeCallback(cleanPeerId, 'open');
     }
   });
 
   conn.on('data', (data) => {
-    console.log("Received data from:", peerId, data);
+    console.log("Received data from:", cleanPeerId, data);
     if (onMessageCallback && data && data.type === 'chat') {
-      onMessageCallback(peerId, {
+      onMessageCallback(cleanPeerId, {
         text: data.text,
         timestamp: data.timestamp || Date.now(),
-        sender: data.sender || peerId
+        sender: data.sender || cleanPeerId
       });
     }
   });
 
   conn.on('close', () => {
-    console.log("Data connection closed with:", peerId);
-    activeConnections.delete(peerId);
+    console.log("Data connection closed with:", cleanPeerId);
+    if (activeConnections.get(cleanPeerId) === conn) {
+      activeConnections.delete(cleanPeerId);
+    }
     if (onConnectionStateChangeCallback) {
-      onConnectionStateChangeCallback(peerId, 'close');
+      onConnectionStateChangeCallback(cleanPeerId, 'close');
     }
   });
 
   conn.on('error', (err) => {
-    console.error(`Connection error with ${peerId}:`, err);
+    console.error(`Connection error with ${cleanPeerId}:`, err);
     if (onConnectionStateChangeCallback) {
-      onConnectionStateChangeCallback(peerId, 'error', err);
+      onConnectionStateChangeCallback(cleanPeerId, 'error', err);
     }
   });
+}
+
+class MultiConnectionWrapper {
+  constructor(cleanPeerId, conns) {
+    this.cleanPeerId = cleanPeerId;
+    this.conns = conns;
+    this.open = false;
+    this.activeConn = null;
+    this.listeners = { open: [], error: [] };
+
+    let failedCount = 0;
+
+    for (const conn of conns) {
+      conn.on('open', () => {
+        if (this.open) {
+          // If we already opened a connection, close this duplicate
+          conn.close();
+          return;
+        }
+        this.open = true;
+        this.activeConn = conn;
+        
+        // Register the working connection via our standard listeners
+        setupConnectionListeners(conn);
+
+        // Notify open listeners
+        this.listeners.open.forEach(cb => cb());
+      });
+
+      conn.on('error', (err) => {
+        failedCount++;
+        // If all connection attempts failed, notify error listeners
+        if (failedCount === conns.length && !this.open) {
+          this.listeners.error.forEach(cb => cb(err));
+        }
+      });
+    }
+  }
+
+  on(event, cb) {
+    if (this.listeners[event]) {
+      this.listeners[event].push(cb);
+    }
+  }
+
+  off(event, cb) {
+    if (this.listeners[event]) {
+      this.listeners[event] = this.listeners[event].filter(x => x !== cb);
+    }
+  }
+
+  send(data) {
+    if (this.activeConn && this.open) {
+      this.activeConn.send(data);
+    } else {
+      throw new Error("Connection not open.");
+    }
+  }
 }
 
 /**
  * Connect to a target peer.
  *
  * @param {string} peerId
- * @returns {DataConnection}
+ * @returns {DataConnection|MultiConnectionWrapper}
  */
 export function connectToPeer(peerId) {
   if (!peer || peer.destroyed) {
     throw new Error("Chat engine is not initialized.");
   }
 
+  const cleanPeerId = peerId.replace(/-ext$/, '').replace(/-web$/, '');
+
   // If already connected and open, return existing connection
-  if (activeConnections.has(peerId)) {
-    const existing = activeConnections.get(peerId);
+  if (activeConnections.has(cleanPeerId)) {
+    const existing = activeConnections.get(cleanPeerId);
     if (existing.open) {
       return existing;
     }
   }
 
-  console.log("Initiating WebRTC connection to peer:", peerId);
-  const conn = peer.connect(peerId, {
-    reliable: true
-  });
+  console.log("Initiating WebRTC connection to peer suffixes for:", cleanPeerId);
+  const connExt = peer.connect(cleanPeerId + '-ext', { reliable: true });
+  const connWeb = peer.connect(cleanPeerId + '-web', { reliable: true });
+  const connRaw = peer.connect(cleanPeerId, { reliable: true });
 
-  setupConnectionListeners(conn);
-  return conn;
+  const wrapper = new MultiConnectionWrapper(cleanPeerId, [connExt, connWeb, connRaw]);
+  return wrapper;
 }
 
 /**
@@ -186,13 +254,4 @@ export function disconnectChatEngine() {
     peer = null;
   }
   activeConnections.clear();
-}
-
-/**
- * Get active connection peer IDs.
- *
- * @returns {Array<string>}
- */
-export function getActiveConnections() {
-  return Array.from(activeConnections.keys());
 }
