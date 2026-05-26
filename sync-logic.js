@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
+require('./generate-config.js');
+
 const srcDir = path.join(__dirname, 'Logic');
 const destDir = path.join(__dirname, 'Extension', 'Logic');
 

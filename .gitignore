@@ -1,0 +1,8 @@
+node_modules/
+Logic/config.js
+Extension/Logic/config.js
+.env
+.env.*
+.DS_Store
+dist/
+.astro/
