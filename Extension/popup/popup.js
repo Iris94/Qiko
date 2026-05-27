@@ -759,16 +759,24 @@ async function initDashboardScreen() {
             await storage.set({ [historyKey]: history });
             
             // Auto-add to contacts if not already present
-            const contacts = await firebaseDb.getContacts(state.qiko_user_id, state.qiko_token);
-            if (!contacts.includes(senderId)) {
-              contacts.push(senderId);
-              await firebaseDb.updateContacts(state.qiko_user_id, contacts, state.qiko_token);
+            try {
+              if (state.qiko_user_id && state.qiko_token) {
+                const contacts = await firebaseDb.getContacts(state.qiko_user_id, state.qiko_token);
+                if (contacts && !contacts.includes(senderId)) {
+                  contacts.push(senderId);
+                  await firebaseDb.updateContacts(state.qiko_user_id, contacts, state.qiko_token);
+                }
+              }
+            } catch (e) {
+              console.error("[WebPopup] Failed to auto-add contact on message:", e);
             }
             
             await loadAndRenderContacts();
             
             if (state.qiko_active_partner === senderId) {
               uiManager.renderChatLog(history, state.qiko_id);
+            } else if (!state.qiko_active_partner) {
+              await selectPartner(senderId);
             }
           }
         },
@@ -958,6 +966,21 @@ async function initDashboardScreen() {
       if (changes.qiko_contacts_updated) {
         await loadAndRenderContacts();
       }
+
+      // Auto-select active partner if a message is received while none is active
+      if (!state.qiko_active_partner) {
+        const historyKeyPrefix = 'qiko_history_';
+        for (const key of Object.keys(changes)) {
+          if (key.startsWith(historyKeyPrefix)) {
+            const changedSenderId = key.substring(historyKeyPrefix.length);
+            if (changedSenderId) {
+              await selectPartner(changedSenderId);
+              break;
+            }
+          }
+        }
+      }
+
       if (changes.qiko_active_partner && changes.qiko_active_partner.newValue) {
         await selectPartner(changes.qiko_active_partner.newValue);
       }
