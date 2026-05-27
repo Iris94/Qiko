@@ -19,13 +19,35 @@ const storage = {
         chrome.storage.local.get(keys, resolve);
       });
     } else {
+      const safeParse = (val) => {
+        if (val === null) return null;
+        try {
+          return JSON.parse(val);
+        } catch (e) {
+          if (val === 'true') return true;
+          if (val === 'false') return false;
+          return val;
+        }
+      };
+
       const result = {};
-      const keyList = Array.isArray(keys) ? keys : [keys];
-      for (const k of keyList) {
-        const val = localStorage.getItem(k);
-        if (val === 'true') result[k] = true;
-        else if (val === 'false') result[k] = false;
-        else result[k] = val;
+      if (typeof keys === 'string') {
+        const val = localStorage.getItem(keys);
+        if (val !== null) {
+          result[keys] = safeParse(val);
+        }
+      } else if (Array.isArray(keys)) {
+        for (const k of keys) {
+          const val = localStorage.getItem(k);
+          if (val !== null) {
+            result[k] = safeParse(val);
+          }
+        }
+      } else if (typeof keys === 'object' && keys !== null) {
+        for (const [k, defaultVal] of Object.entries(keys)) {
+          const val = localStorage.getItem(k);
+          result[k] = val !== null ? safeParse(val) : defaultVal;
+        }
       }
       return result;
     }
@@ -37,7 +59,8 @@ const storage = {
       });
     } else {
       for (const [k, v] of Object.entries(items)) {
-        localStorage.setItem(k, v);
+        const strVal = typeof v === 'string' ? v : JSON.stringify(v);
+        localStorage.setItem(k, strVal);
       }
     }
   },
@@ -60,6 +83,7 @@ const storage = {
     }
   }
 };
+
 
 async function initThemeSwitcher() {
   const state = await storage.get('qiko_theme');
@@ -850,22 +874,13 @@ async function initDashboardScreen() {
 
     inputMessage.value = '';
 
-    const historyKey = `qiko_history_${partnerId}`;
     const timestamp = Date.now();
-
     const sentMsg = {
       sender: state.qiko_id,
       text: msgText,
       timestamp: timestamp,
       received: false
     };
-
-    const historyData = await storage.get(historyKey);
-    const history = historyData[historyKey] || [];
-    history.push(sentMsg);
-    if (history.length > 100) history.shift();
-    await storage.set({ [historyKey]: history });
-    uiManager.renderChatLog(history, state.qiko_id);
 
     try {
       if (typeof chrome !== 'undefined' && chrome.offscreen) {
@@ -888,15 +903,29 @@ async function initDashboardScreen() {
       } else {
         await chatEngine.sendMessage(partnerId, msgText, state.qiko_id);
       }
+
+      // Success: Save message to history and render
+      const historyKey = `qiko_history_${partnerId}`;
+      const historyData = await storage.get(historyKey);
+      const history = historyData[historyKey] || [];
+      history.push(sentMsg);
+      if (history.length > 100) history.shift();
+      await storage.set({ [historyKey]: history });
+      uiManager.renderChatLog(history, state.qiko_id);
+
     } catch (err) {
-      console.error("P2P transmission failed:", err);
+      console.warn("P2P transmission failed (peer offline):", err);
+
+      // Show temporary warning in UI without persisting to storage
+      const historyKey = `qiko_history_${partnerId}`;
+      const historyData = await storage.get(historyKey);
+      const history = [...(historyData[historyKey] || [])];
       history.push({
         sender: 'system',
-        text: `Message delivery failed: ${err.message || 'Peer is offline or unreachable.'}`,
+        text: `Message delivery failed: User is offline.`,
         timestamp: Date.now(),
         received: true
       });
-      await storage.set({ [historyKey]: history });
       uiManager.renderChatLog(history, state.qiko_id);
     }
   };

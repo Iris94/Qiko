@@ -279,6 +279,11 @@ export function renderChatLog(messages, myQikoId) {
 
   chatMessagesLog.innerHTML = '';
 
+  if (!Array.isArray(messages)) {
+    messages = [];
+  }
+
+
   if (messages.length === 0) {
     chatMessagesLog.innerHTML = `
       <div class="msg-time">System</div>

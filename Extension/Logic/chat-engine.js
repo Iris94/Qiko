@@ -42,6 +42,23 @@ export function initChatEngine(myQikoId, callbacks = {}) {
   });
 
   peer.on('error', (err) => {
+    if (err.type === 'peer-unavailable') {
+      const match = err.message.match(/Could not connect to peer ([\w-]+)/);
+      const targetPeerId = match ? match[1] : null;
+      if (targetPeerId) {
+        console.warn(`[ChatEngine] Peer ${targetPeerId} is offline or unavailable.`);
+        const conn = activeConnections.get(targetPeerId);
+        if (conn) {
+          if (typeof conn.emit === 'function') {
+            conn.emit('error', err);
+          }
+          conn.close();
+          activeConnections.delete(targetPeerId);
+        }
+      }
+      return;
+    }
+
     console.error("PeerJS global error:", err);
     if (onPeerErrorCallback) {
       onPeerErrorCallback(err);
@@ -97,7 +114,11 @@ function setupConnectionListeners(conn) {
   });
 
   conn.on('error', (err) => {
-    console.error(`Connection error with ${peerId}:`, err);
+    if (err && err.message && err.message.includes("Could not connect to peer")) {
+      console.warn(`Connection error with ${peerId} (user offline):`, err.message);
+    } else {
+      console.error(`Connection error with ${peerId}:`, err);
+    }
     if (onConnectionStateChangeCallback) {
       onConnectionStateChangeCallback(peerId, 'error', err);
     }
@@ -160,13 +181,21 @@ export function sendMessage(peerId, text, myQikoId) {
     return Promise.resolve(payload);
   } else {
     return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        conn.off('open', onOpen);
+        conn.off('error', onError);
+        reject(new Error("Connection timeout: Peer is unreachable."));
+      }, 10000);
+
       const onOpen = () => {
+        clearTimeout(timeoutId);
         conn.send(payload);
         conn.off('open', onOpen);
         conn.off('error', onError);
         resolve(payload);
       };
       const onError = (err) => {
+        clearTimeout(timeoutId);
         conn.off('open', onOpen);
         conn.off('error', onError);
         reject(err);
