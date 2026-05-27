@@ -23,15 +23,9 @@ const storage = {
       const keyList = Array.isArray(keys) ? keys : [keys];
       for (const k of keyList) {
         const val = localStorage.getItem(k);
-        if (val !== null) {
-          try {
-            result[k] = JSON.parse(val);
-          } catch (e) {
-            result[k] = val;
-          }
-        } else {
-          result[k] = undefined;
-        }
+        if (val === 'true') result[k] = true;
+        else if (val === 'false') result[k] = false;
+        else result[k] = val;
       }
       return result;
     }
@@ -43,7 +37,7 @@ const storage = {
       });
     } else {
       for (const [k, v] of Object.entries(items)) {
-        localStorage.setItem(k, JSON.stringify(v));
+        localStorage.setItem(k, v);
       }
     }
   },
@@ -678,8 +672,7 @@ async function initDashboardScreen() {
         
         const historyKey = `qiko_history_${selectedPartnerId}`;
         const historyData = await storage.get(historyKey);
-        const rawHistory = historyData[historyKey];
-        const history = Array.isArray(rawHistory) ? rawHistory : [];
+        const history = historyData[historyKey] || [];
         uiManager.renderChatLog(history, state.qiko_id);
       });
     } catch (err) {
@@ -706,8 +699,7 @@ async function initDashboardScreen() {
 
     const historyKey = `qiko_history_${partnerId}`;
     const historyData = await storage.get(historyKey);
-    const rawHistory = historyData[historyKey];
-    const history = Array.isArray(rawHistory) ? rawHistory : [];
+    const history = historyData[historyKey] || [];
     uiManager.renderChatLog(history, state.qiko_id);
   }
 
@@ -722,14 +714,12 @@ async function initDashboardScreen() {
   } else {
     // Fallback context: Initialize PeerJS in-page
     try {
-      const randomIdSuffix = Math.random().toString(36).substring(2, 6);
-      chatEngine.initChatEngine(state.qiko_id + '-web-' + randomIdSuffix, {
+      chatEngine.initChatEngine(state.qiko_id, {
         onMessage: async (senderId, data) => {
           console.log(`Received message from ${senderId}:`, data);
           const historyKey = `qiko_history_${senderId}`;
           const historyData = await storage.get(historyKey);
-          const rawHistory = historyData[historyKey];
-          const history = Array.isArray(rawHistory) ? rawHistory : [];
+          const history = historyData[historyKey] || [];
           
           const isDuplicate = history.some(m => m.timestamp === data.timestamp && m.text === data.text);
           if (!isDuplicate) {
@@ -762,7 +752,7 @@ async function initDashboardScreen() {
           console.log(`P2P Status with ${peerId}:`, status);
           loadAndRenderContacts();
         }
-      }, state.qiko_token);
+      });
     } catch (err) {
       console.error("Failed to initialize PeerJS chat engine in-page:", err);
     }
@@ -871,8 +861,7 @@ async function initDashboardScreen() {
     };
 
     const historyData = await storage.get(historyKey);
-    const rawHistory = historyData[historyKey];
-    const history = Array.isArray(rawHistory) ? rawHistory : [];
+    const history = historyData[historyKey] || [];
     history.push(sentMsg);
     if (history.length > 100) history.shift();
     await storage.set({ [historyKey]: history });
@@ -882,7 +871,7 @@ async function initDashboardScreen() {
       if (typeof chrome !== 'undefined' && chrome.offscreen) {
         await new Promise((resolve, reject) => {
           chrome.runtime.sendMessage({
-            target: 'background',
+            target: 'offscreen',
             type: 'sendMessage',
             partnerId: partnerId,
             text: msgText

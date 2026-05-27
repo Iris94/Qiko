@@ -114,10 +114,10 @@ async function setupOffscreen() {
       if (await hasOffscreenDocument()) {
         await chrome.offscreen.closeDocument();
       }
-      return false;
+      return;
     }
 
-    if (await hasOffscreenDocument()) return false;
+    if (await hasOffscreenDocument()) return;
 
     console.log("Creating offscreen document for background WebRTC...");
     await chrome.offscreen.createDocument({
@@ -125,7 +125,6 @@ async function setupOffscreen() {
       reasons: ['WEB_RTC'],
       justification: 'Maintaining a background PeerJS WebRTC connection for direct messaging.'
     });
-    return true;
   } catch (err) {
     if (
       !err.message.includes('Only a single offscreen document may be created') &&
@@ -133,69 +132,7 @@ async function setupOffscreen() {
     ) {
       console.error("Failed to setup offscreen document:", err);
     }
-    return false;
   }
-}
-
-let offscreenReadyPromise = null;
-let resolveOffscreenReady = null;
-
-function resetOffscreenReady() {
-  offscreenReadyPromise = new Promise((resolve) => {
-    resolveOffscreenReady = resolve;
-  });
-}
-resetOffscreenReady();
-
-async function pingOffscreen() {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage({ target: 'offscreen', type: 'ping' }, (res) => {
-      if (chrome.runtime.lastError || !res || !res.success) {
-        resolve(false);
-      } else {
-        resolve(true);
-      }
-    });
-  });
-}
-
-async function ensureOffscreen() {
-  const exists = await hasOffscreenDocument();
-  if (exists) {
-    const alive = await pingOffscreen();
-    if (alive) {
-      return;
-    }
-    try {
-      await chrome.offscreen.closeDocument();
-    } catch (e) {}
-  }
-  resetOffscreenReady();
-  await setupOffscreen();
-  await Promise.race([
-    offscreenReadyPromise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error("Offscreen initialization timed out")), 5000))
-  ]);
-}
-
-async function ensureOffscreenAndSendMessage(partnerId, text) {
-  await ensureOffscreen();
-  return await new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage({
-      target: 'offscreen',
-      type: 'sendMessage',
-      partnerId,
-      text
-    }, (res) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-      } else if (res && res.success) {
-        resolve(res.payload);
-      } else {
-        reject(new Error((res && res.error) || 'Failed to send message via background channel.'));
-      }
-    });
-  });
 }
 
 chrome.alarms.create('qiko_keep_alive', { periodInMinutes: 1 });
@@ -282,7 +219,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'CHECK_OFFSCREEN') {
-    ensureOffscreen().then(() => sendResponse({ success: true })).catch(() => sendResponse({ success: false }));
+    setupOffscreen().then(() => sendResponse({ success: true }));
     return true;
   }
   if (message.type === 'OPEN_POPUP') {
@@ -298,21 +235,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   if (message.target === 'background') {
-    if (message.type === 'offscreen_ready') {
-      if (resolveOffscreenReady) resolveOffscreenReady();
-      sendResponse({ success: true });
-      return true;
-    }
-    if (message.type === 'sendMessage') {
-      ensureOffscreenAndSendMessage(message.partnerId, message.text)
-        .then((payload) => {
-          sendResponse({ success: true, payload });
-        })
-        .catch((err) => {
-          sendResponse({ success: false, error: err.message || 'Connection failed' });
-        });
-      return true;
-    }
     if (message.type === 'getStorage') {
       chrome.storage.local.get(message.keys, (result) => {
         sendResponse(result);

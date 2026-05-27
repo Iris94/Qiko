@@ -31,10 +31,9 @@
     "offscreen"
   ],
   "host_permissions": [
-    "https://*.firebasedatabase.app/*",
-    "https://*.europe-west1.firebasedatabase.app/*",
-    "https://*.googleapis.com/*",
-    "https://*.peerjs.com/*"
+    "https://*.firebasedatabase.app/",
+    "https://*.googleapis.com/",
+    "https://*.peerjs.com/"
   ],
   "background": {
     "service_worker": "background.js",
