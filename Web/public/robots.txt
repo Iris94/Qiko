@@ -1,0 +1,22 @@
+# Allow all search engines and AI crawlers
+User-agent: *
+Allow: /
+
+# Specifically invite main AI search crawlers
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+# Sitemap
+Sitemap: https://qiko.chat/sitemap.xml

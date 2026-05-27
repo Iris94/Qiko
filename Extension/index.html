@@ -7,38 +7,72 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div class="container welcome-container">
-        <div class="logo-container">
-            <svg class="welcome-logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 22C12 22 20 18 20 12V5L12 2L4 5V12C4 18 12 22 12 22Z" fill="var(--color-primary)" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M9 11L11 13L15 9" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-        </div>
+<body class="welcome-page nord-gradient">
+    <div class="aurora-glow"></div>
+    
+    <main class="welcome-page-main">
+        <section class="welcome-hero-section">
+            <!-- Shield Graphic Container -->
+            <div class="shield-graphic-container">
+                <div class="shield-graphic-glow"></div>
+                <div class="shield-image-box">
+                    <img class="shield-preview-img" alt="Security Status" src="icons/logo-128.png">
+                </div>
+            </div>
 
-        <h1 class="welcome-title">Qiko - Secure &amp; Private Browser Chat</h1>
-        <p class="welcome-desc">
-            Create or sign in with your unique Qiko ID to start private communication.
-        </p>
+            <!-- Title & Desc -->
+            <div class="welcome-title-group">
+                <h1 class="welcome-title-upgraded">Qiko - Secure &amp; Private Browser Chat</h1>
+                <p class="welcome-desc-upgraded">
+                    A decentralized, P2P encrypted messaging environment built directly into your workflow. No servers, no logs, just privacy.
+                </p>
+            </div>
 
-        <div class="actions-group">
-            <button id="btn-create-id" class="btn btn-primary">Create Qiko ID</button>
-            <button id="btn-sign-id" class="btn btn-outline">Sign with Qiko ID</button>
-        </div>
+            <!-- CTA Buttons -->
+            <div class="welcome-actions-group">
+                <button id="btn-create-id" class="btn-upgraded btn-primary-upgraded">
+                    <span class="material-symbols-outlined">fingerprint</span>
+                    Create Qiko ID
+                </button>
+                <button id="btn-sign-id" class="btn-upgraded btn-outline-upgraded">
+                    <span class="material-symbols-outlined">login</span>
+                    Sign with Qiko ID
+                </button>
+            </div>
+        </section>
 
-        <div class="footer-wrapper">
-            <select class="theme-select-dropdown">
-                <option value="system">System</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-            </select>
-            <span class="footer-text"></span>
-        </div>
-    </div>
+        <!-- Footer -->
+        <footer class="welcome-footer-upgraded">
+            <div class="welcome-footer-left">
+                <span>© Qiko 2026 • v0.1</span>
+                <select class="theme-select-dropdown">
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                </select>
+            </div>
+            <div class="welcome-footer-right">
+                <span class="welcome-encrypted-dot"></span>
+                <span>P2P ENCRYPTED</span>
+            </div>
+        </footer>
+    </main>
 
     <script src="Logic/peerjs.min.js"></script>
     <script type="module" src="popup/popup.js"></script>
+    <script>
+        // Subtle mouse interaction for the aurora glow
+        document.addEventListener('mousemove', (e) => {
+            const glow = document.querySelector('.aurora-glow');
+            if (glow) {
+                const x = e.clientX - 150;
+                const y = e.clientY - 150;
+                glow.style.transform = `translate(${x/10}px, ${y/10}px)`;
+            }
+        });
+    </script>
 </body>
 </html>

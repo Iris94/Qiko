@@ -13,8 +13,54 @@ const {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- Primary Meta Tags -->
   <title>{title}</title>
+  <meta name="title" content={title} />
   <meta name="description" content={description} />
+  <meta name="keywords" content="p2p chat, peer to peer messaging, secure browser chat, anonymous messaging extension, no registration chat, temporary chat room, serverless chat, webrtc chat extension, secure direct connection, qiko" />
+  <meta name="robots" content="index, follow" />
+  <meta name="language" content="English" />
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://qiko.chat" />
+  <meta property="og:title" content={title} />
+  <meta property="og:description" content={description} />
+  <meta property="og:image" content="https://qiko.chat/logo.png" />
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary" />
+  <meta property="twitter:url" content="https://qiko.chat" />
+  <meta property="twitter:title" content={title} />
+  <meta property="twitter:description" content={description} />
+  <meta property="twitter:image" content="https://qiko.chat/logo.png" />
+
+  <!-- JSON-LD Structured Data Schema for Search & AI Engines -->
+  <script type="application/ld+json" is:inline>
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Qiko",
+      "operatingSystem": "All",
+      "applicationCategory": "CommunicationApplication",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "Secure, private peer-to-peer messaging directly in your browser. No servers, no account registration required. Just a secure direct connection.",
+      "browserRequirements": "Requires HTML5, WebRTC compatible browser (Chrome, Firefox, Safari, Edge)",
+      "featureList": [
+        "No account signup required",
+        "Direct browser-to-browser P2P WebRTC connection",
+        "Zero server messages history storage",
+        "Secure private communication channels",
+        "Available as a Chrome browser extension and web application"
+      ]
+    }
+  </script>
+
   <link rel="icon" href="/logo.png" />
   <script is:inline src="/peerjs.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -35,6 +81,7 @@ const {
       --primary-rgb:  94, 129, 172;
       --primary-lt:   #81a1c1; /* Nord 9 */
       --secondary:    #88c0d0; /* Nord 8 */
+      --tertiary:     #b48ead; /* Nord 15 */
       --accent:       #81a1c1; /* Nord 9 */
       --error:        #bf616a; /* Nord 11 */
       --success:      #a3be8c; /* Nord 14 */
@@ -63,6 +110,7 @@ const {
       --primary-rgb:  136, 192, 208;
       --primary-lt:   #81a1c1; /* Nord 9 */
       --secondary:    #8fbcbb; /* Nord 7 */
+      --tertiary:     #b48ead; /* Nord 15 */
       --accent:       #81a1c1; /* Nord 9 */
       --error:        #bf616a; /* Nord 11 */
       --success:      #a3be8c; /* Nord 14 */
@@ -76,7 +124,7 @@ const {
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; font-size: 16px; }
     body {
-      background: var(--color-bg, var(--bg));
+      background: radial-gradient(circle at 0% 0%, #ffffff 0%, #d8dee9 100%);
       color: var(--text);
       font-family: 'Inter', system-ui, sans-serif;
       line-height: 1.6;
@@ -84,6 +132,9 @@ const {
       display: flex;
       flex-direction: column;
       transition: background var(--transition), color var(--transition);
+    }
+    [data-theme="dark"] body {
+      background: radial-gradient(circle at 0% 0%, #2e3440 0%, #0d131e 100%);
     }
     img { display: block; max-width: 100%; }
     a { color: inherit; text-decoration: none; }

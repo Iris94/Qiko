@@ -4,33 +4,42 @@ import '../../styles/chat/style.css';
 ---
 
 <Layout title="Qiko — Browser Chat">
-  <div class="chat-page-wrapper">
-    <div class="container welcome-container">
-        <div class="logo-container">
-            <svg class="welcome-logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 22C12 22 20 18 20 12V5L12 2L4 5V12C4 18 12 22 12 22Z" fill="var(--color-primary)" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M9 11L11 13L15 9" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+  <div class="chat-page-wrapper" style="position: relative; overflow: hidden;">
+    <div class="aurora-glow"></div>
+    <div class="glass-panel welcome-container" style="max-width: 500px; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 36px 24px; text-align: center; gap: 24px; position: relative; z-index: 2;">
+        <div class="shield-graphic-container">
+            <div class="shield-graphic-glow"></div>
+            <div class="shield-image-box" style="width: 80px; height: 80px;">
+                <img src="/logo.png" alt="Qiko Logo" class="shield-preview-img">
+            </div>
         </div>
 
-        <h1 class="welcome-title">Qiko - Secure &amp; Private Browser Chat</h1>
-        <p class="welcome-desc">
-            Create or sign in with your unique Qiko ID to start private communication.
-        </p>
-
-        <div class="actions-group">
-            <button id="btn-create-id" class="btn btn-primary">Create Qiko ID</button>
-            <button id="btn-sign-id" class="btn btn-outline">Sign with Qiko ID</button>
+        <div class="welcome-title-group">
+            <h1 class="welcome-title-upgraded">Qiko</h1>
+            <p class="welcome-desc-upgraded">Secure & Private Browser Chat. Create or sign in with your Qiko ID to begin.</p>
         </div>
 
-        <div class="footer-wrapper">
-            <select class="theme-select-dropdown">
-                <option value="system">System</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-            </select>
-            <span class="footer-text"></span>
+        <div class="welcome-actions-group" style="margin-top: 8px; width: 100%;">
+            <button id="btn-create-id" class="btn-upgraded btn-primary-upgraded">
+                <span class="material-symbols-outlined">fingerprint</span>
+                Create Qiko ID
+            </button>
+            <button id="btn-sign-id" class="btn-upgraded btn-outline-upgraded">
+                <span class="material-symbols-outlined">login</span>
+                Sign with Qiko ID
+            </button>
         </div>
+
+        <!-- Upgraded Footer -->
+        <footer class="welcome-footer-upgraded" style="border-top: 1px solid var(--color-border); margin-top: 12px; width: 100%; opacity: 0.85;">
+            <div class="welcome-footer-left">
+                <span>© Qiko 2026 • v0.1</span>
+            </div>
+            <div class="welcome-footer-right">
+                <span class="welcome-encrypted-dot"></span>
+                <span>P2P ENCRYPTED</span>
+            </div>
+        </footer>
     </div>
   </div>
 </Layout>
@@ -46,48 +55,7 @@ import '../../styles/chat/style.css';
     justify-content: center;
     min-height: 100vh;
     padding: 40px 24px;
-    background-color: var(--color-bg) !important;
-  }
-  .welcome-container {
-    max-width: 480px;
-    width: 100%;
-    height: auto !important;
-    min-height: 520px;
-    background: var(--color-surface) !important;
-    border: 1px solid var(--color-border) !important;
-    border-radius: 4px !important;
-    box-shadow: none !important;
-    padding: 48px 32px !important;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    color: var(--color-text) !important;
-  }
-  .logo-container {
-    width: 96px !important;
-    height: 96px !important;
-    margin-bottom: 28px !important;
-  }
-  .welcome-title {
-    font-size: 26px !important;
-    margin-bottom: 16px !important;
-    line-height: 1.3 !important;
-    color: var(--color-text) !important;
-  }
-  .welcome-desc {
-    font-size: 14.5px !important;
-    max-width: 380px !important;
-    margin-bottom: 36px !important;
-    color: var(--color-muted-text) !important;
-  }
-  .actions-group {
-    max-width: 380px !important;
-    gap: 16px !important;
-  }
-  .btn {
-    height: 48px !important;
-    font-size: 14.5px !important;
-    border-radius: var(--radius-md) !important;
+    background-color: transparent !important;
+    box-sizing: border-box;
   }
 </style>

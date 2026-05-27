@@ -36,125 +36,217 @@ import '../../styles/chat/style.css';
         </aside>
 
         <main class="main-content">
+            <!-- Scene 1: Chat Dashboard -->
             <div id="scene-chat-dashboard" class="scene-view">
-                <div class="scene-container">
-                    <div class="dashboard-header-main">
-                        <button type="button" id="btn-connect" class="btn-connect-large">Connect +</button>
-                        <span class="brand-center-text">Qiko</span>
+                <div class="scene-container" style="padding-bottom: 0;">
+                    <div class="dashboard-header-main" style="margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--color-border);">
+                        <button type="button" id="btn-connect" class="btn-upgraded btn-primary-upgraded" style="width: auto; height: 32px; padding: 0 16px; font-size: 11.5px; border-radius: 20px;">Connect +</button>
+                        <span class="brand-center-text" style="font-family: var(--font-display); font-weight: 800; font-size: 16px; letter-spacing: -0.01em;">Qiko</span>
                         <div class="header-right-group">
                             <span id="dashboard-user-display" class="user-display-name-large">Guest</span>
                             <span class="status-dot"></span>
                         </div>
                     </div>
 
-                    <div class="active-chats-bar hide" id="active-chats-bar">
+                    <div class="active-chats-bar hide" id="active-chats-bar" style="margin-bottom: 12px; max-width: 900px; width: 100%; margin-left: auto; margin-right: auto;">
                         <div class="active-chats-scroll" id="active-chats-list"></div>
                     </div>
 
-                    <div id="chat-empty-state" class="chat-empty-wrapper">
-                        <h3 class="empty-title">No connections currently</h3>
-                        <p class="empty-subtitle">Add them by clicking connect button or by clicking + button in sidebar.</p>
+                    <!-- Empty State -->
+                    <div id="chat-empty-state" class="chat-empty-wrapper logins-content-scrollable" style="justify-content: center; align-items: center; text-align: center;">
+                        <div class="glass-panel" style="max-width: 320px; display: flex; flex-direction: column; align-items: center; gap: 14px;">
+                            <span class="material-symbols-outlined" style="font-size: 48px; color: var(--color-primary);">chat_bubble</span>
+                            <div>
+                                <h3 class="empty-title" style="margin: 0 0 6px 0; font-size: 15px;">No connections currently</h3>
+                                <p class="empty-subtitle" style="margin: 0; font-size: 12px; line-height: 18px; color: var(--color-muted-text);">Add friends by clicking Connect + above or + in the sidebar.</p>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="chat-main-section hide" id="chat-main-section">
-                        <div class="chat-partner-header">
+                    <!-- Active Chat Section -->
+                    <div class="chat-main-section hide" id="chat-main-section" style="display: flex; flex-direction: column; flex: 1;">
+                        <div class="chat-partner-header" style="border-bottom: 1px solid var(--color-border); padding-bottom: 10px; margin-bottom: 10px; max-width: 900px; width: 100%; margin-left: auto; margin-right: auto;">
                             <div style="width: 55px;"></div>
-                            <h4 id="chat-partner-name" class="chat-partner-title">&mdash; Choose Contact &mdash;</h4>
+                            <h4 id="chat-partner-name" class="chat-partner-title" style="font-size: 14px; font-weight: 700;">&mdash; Choose Contact &mdash;</h4>
                             <button type="button" id="btn-remove-connection" class="btn-remove-conn" title="Remove Connection">Remove</button>
                         </div>
-                        <div class="chat-messages-log" id="chat-messages-log"></div>
-                        <div class="chat-input-bar">
-                            <textarea id="chat-message-input" class="chat-input-field" placeholder="Type a message..." rows="1"></textarea>
+                        
+                        <div class="chat-messages-log" id="chat-messages-log" style="flex: 1; overflow-y: auto; max-width: 900px; width: 100%; margin-left: auto; margin-right: auto;"></div>
+                        
+                        <div class="chat-input-bar" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--color-border); border-radius: 12px; padding: 6px 8px; gap: 6px; display: flex; align-items: center; margin-bottom: 12px; max-width: 900px; width: 100%; margin-left: auto; margin-right: auto;">
+                            <textarea id="chat-message-input" class="chat-input-field" placeholder="Type a message..." rows="1" style="background: transparent; border: none; padding: 8px; color: var(--color-text); outline: none; font-size: 13px; flex: 1; resize: none;"></textarea>
                             <button type="button" id="btn-send-message" class="btn-send-svg" title="Send">
-                                <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                                <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                             </button>
                         </div>
                     </div>
 
-                    <div class="dashboard-footer-bar">
-                        <span class="footer-left-copyright footer-text"></span>
-                    </div>
+                    <!-- Upgraded Footer -->
+                    <footer class="welcome-footer-upgraded" style="border-top: 1px solid var(--color-border); margin-top: auto; opacity: 0.85;">
+                        <div class="welcome-footer-left">
+                            <span>© Qiko 2026 • v0.1</span>
+                        </div>
+                        <div class="welcome-footer-right">
+                            <span class="welcome-encrypted-dot"></span>
+                            <span>P2P ENCRYPTED</span>
+                        </div>
+                    </footer>
                 </div>
             </div>
 
+            <!-- Scene 2: User Profile -->
             <div id="scene-user-profile" class="scene-view hide">
-                <div class="scene-container-profile">
-                    <div>
-                        <h2 class="setup-title">User</h2>
-                        <form id="form-profile-edit" class="setup-form hide">
-                            <div class="form-group">
-                                <label>Qiko ID</label>
-                                <input type="text" id="profile-edit-id" class="form-control font-mono" readonly style="background-color: var(--color-surface); font-weight: 700; color: var(--color-primary);">
-                            </div>
-                            <div class="form-group">
-                                <label for="profile-edit-email">Email</label>
-                                <input type="email" id="profile-edit-email" class="form-control" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="profile-edit-username">Username</label>
-                                <input type="text" id="profile-edit-username" class="form-control" placeholder="Nickname">
-                            </div>
-                            <div id="profile-edit-success-msg" class="status-badge" style="background-color: rgba(163, 190, 140, 0.15); color: #a3be8c; display: none; margin-top: 8px; width: 100%; justify-content: center;">Changes saved successfully</div>
-                            <div id="profile-edit-error-msg" class="error-text hide" style="margin-top: 6px;"></div>
-                            <button type="submit" id="btn-profile-save" class="btn btn-primary w-100 mt-16">Save Changes</button>
-                        </form>
-                        <form id="form-profile-upgrade" class="setup-form hide">
-                            <p class="setup-description">Add an email and password to secure your account and sync contacts on other devices.</p>
-                            <div class="form-group">
-                                <label for="profile-upgrade-email">Email</label>
-                                <input type="email" id="profile-upgrade-email" class="form-control" placeholder="name@example.com" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="profile-upgrade-password">Password</label>
-                                <div class="password-input-wrapper">
-                                    <input type="password" id="profile-upgrade-password" class="form-control" placeholder="Minimum 6 characters" required minlength="6">
-                                    <button type="button" class="btn-toggle-password" data-target="profile-upgrade-password" title="Toggle password visibility">
-                                        <svg class="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="profile-upgrade-username">Username (Optional)</label>
-                                <input type="text" id="profile-upgrade-username" class="form-control" placeholder="Nickname">
-                            </div>
-                            <div id="profile-upgrade-error-msg" class="error-text hide" style="margin-top: 6px;"></div>
-                            <button type="submit" id="btn-profile-upgrade-submit" class="btn btn-primary w-100 mt-16">Register / Link Profile</button>
-                        </form>
+                <div class="logins-container-upgraded" style="margin-top: auto; margin-bottom: auto;">
+                    <div class="logins-header-upgraded">
+                        <h2 class="welcome-title-upgraded" style="font-size: 18px;">Profile & Security</h2>
+                        <span class="status-badge" style="margin: 0;">
+                            <span class="status-dot"></span> Online
+                        </span>
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 20px;">
-                        <button type="button" id="btn-profile-signout" class="btn btn-signout w-100">Sign Out</button>
-                        <button type="button" id="btn-profile-delete" class="btn btn-delete-profile w-100">Delete Profile</button>
-                    </div>
-                </div>
-            </div>
 
-            <div id="scene-connect" class="scene-view hide">
-                <div class="scene-container">
-                    <div class="connect-section" style="margin-bottom: 10px;">
-                        <h3 class="setup-title">Add New Connection</h3>
-                        <p class="setup-description">Insert your friend's Qiko ID or registered email address and click add.</p>
-                        <div style="display: flex; gap: 8px; width: 100%;">
-                            <input type="text" id="connect-input-id" class="form-control" placeholder="Qiko ID or email address" style="flex: 1;">
-                            <button type="button" id="btn-connect-apply" class="btn btn-primary btn-add-conn" style="width: auto;">Add +</button>
+                    <div class="logins-content-scrollable">
+                        <!-- Identity Card -->
+                        <div class="glass-panel" style="margin-bottom: 16px;">
+                            <h3 class="setup-title" style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: var(--color-primary);">User Identity</h3>
+                            
+                            <form id="form-profile-edit" class="setup-form-upgraded hide">
+                                <div class="form-group">
+                                    <label>Qiko ID</label>
+                                    <div class="id-display-glass" style="margin-bottom: 0;">
+                                        <input type="text" id="profile-edit-id" class="id-input-glass" readonly style="font-weight: 700;">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="profile-edit-email">Email</label>
+                                    <input type="email" id="profile-edit-email" class="form-control" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="profile-edit-username">Username</label>
+                                    <input type="text" id="profile-edit-username" class="form-control" placeholder="Nickname">
+                                </div>
+                                <div id="profile-edit-success-msg" class="status-badge" style="background-color: rgba(163, 190, 140, 0.15); color: #a3be8c; display: none; margin-top: 8px; width: 100%; justify-content: center; border: none; font-weight: 600;">Changes saved successfully</div>
+                                <div id="profile-edit-error-msg" class="error-text hide" style="margin-top: 6px;"></div>
+                                
+                                <button type="submit" id="btn-profile-save" class="btn-upgraded btn-primary-upgraded" style="height: 38px; font-size: 13px; margin-top: 8px;">
+                                    <span class="material-symbols-outlined">save</span>
+                                    Save Changes
+                                </button>
+                            </form>
+                            
+                            <!-- Upgrade Account Form -->
+                            <form id="form-profile-upgrade" class="setup-form-upgraded hide">
+                                <p class="setup-description" style="font-size: 12px; margin-top: 0; margin-bottom: 12px; color: var(--color-muted-text); font-weight: 500;">
+                                    Add an email and password to secure your account and sync contacts on other devices:
+                                </p>
+                                <div class="form-group">
+                                    <label for="profile-upgrade-email">Email</label>
+                                    <input type="email" id="profile-upgrade-email" class="form-control" placeholder="name@example.com" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="profile-upgrade-password">Password</label>
+                                    <div class="password-input-wrapper">
+                                        <input type="password" id="profile-upgrade-password" class="form-control" placeholder="Minimum 6 characters" required minlength="6">
+                                        <button type="button" class="btn-toggle-password" data-target="profile-upgrade-password" title="Toggle password visibility">
+                                            <svg class="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="profile-upgrade-username">Username (Optional)</label>
+                                    <input type="text" id="profile-upgrade-username" class="form-control" placeholder="Nickname">
+                                </div>
+                                <div id="profile-upgrade-error-msg" class="error-text hide" style="margin-top: 6px;"></div>
+                                
+                                <button type="submit" id="btn-profile-upgrade-submit" class="btn-upgraded btn-primary-upgraded" style="height: 38px; font-size: 13px; margin-top: 8px;">
+                                    <span class="material-symbols-outlined">vpn_key</span>
+                                    Register / Link Profile
+                                </button>
+                            </form>
                         </div>
-                        <div id="connect-error-msg" class="error-text hide" style="margin-top: 6px;"></div>
-                    </div>
-                    <div class="setup-divider" style="margin: 14px 0;"></div>
-                    <div class="connect-section">
-                        <h3 class="setup-title">Share Your Invite</h3>
-                        <button type="button" id="btn-copy-magic-link" class="btn btn-outline w-100">Copy Magic Invite Link</button>
-                        <p class="setup-description" style="margin-top: 16px; margin-bottom: 6px;">Or copy your Qiko ID manually:</p>
-                        <div class="id-display-fullwidth" style="margin-bottom: 0;">
-                            <input type="text" id="connect-my-id" class="form-control font-mono id-input-full" style="padding: 8px 40px 8px 10px !important;" readonly value="qx-xxxx-xxxx-0">
-                            <button type="button" id="btn-connect-copy-my-id" class="btn-copy-in" title="Copy Qiko ID">
-                                <svg class="icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                                <span id="connect-copy-tooltip" class="copy-tooltip" style="font-size: 8px;">Copy</span>
+
+                        <!-- Actions Panel -->
+                        <div class="glass-panel" style="display: flex; flex-direction: column; gap: 10px;">
+                            <button type="button" id="btn-profile-signout" class="btn-upgraded btn-outline-upgraded" style="height: 38px; font-size: 13px; border-color: rgba(191, 97, 106, 0.4); color: #bf616a;">
+                                <span class="material-symbols-outlined">logout</span>
+                                Sign Out
+                            </button>
+                            <button type="button" id="btn-profile-delete" class="btn-upgraded btn-primary-upgraded" style="height: 38px; font-size: 13px; background-color: #bf616a; color: #2e3440; border: none; box-shadow: none;">
+                                <span class="material-symbols-outlined">delete_forever</span>
+                                Delete Profile
                             </button>
                         </div>
                     </div>
-                    <div class="footer-wrapper" style="margin-top: auto; padding-top: 12px;">
-                        <span class="footer-text"></span>
+
+                    <!-- Upgraded Footer -->
+                    <footer class="welcome-footer-upgraded" style="border-top: 1px solid var(--color-border); margin-top: auto; opacity: 0.85;">
+                        <div class="welcome-footer-left">
+                            <span>© Qiko 2026 • v0.1</span>
+                        </div>
+                        <div class="welcome-footer-right">
+                            <span class="welcome-encrypted-dot"></span>
+                            <span>P2P ENCRYPTED</span>
+                        </div>
+                    </footer>
+                </div>
+            </div>
+
+            <!-- Scene 3: Connect Screen -->
+            <div id="scene-connect" class="scene-view hide">
+                <div class="logins-container-upgraded" style="margin-top: auto; margin-bottom: auto;">
+                    <div class="logins-header-upgraded">
+                        <h2 class="welcome-title-upgraded" style="font-size: 18px;">Connections</h2>
+                        <span class="status-badge" style="margin: 0;">
+                            <span class="status-dot"></span> Online
+                        </span>
                     </div>
+
+                    <div class="logins-content-scrollable">
+                        <!-- Add Connection Glass Panel -->
+                        <div class="glass-panel" style="margin-bottom: 16px;">
+                            <h3 class="setup-title" style="margin-top: 0; margin-bottom: 6px; font-size: 14px; color: var(--color-primary);">Add New Connection</h3>
+                            <p class="setup-description" style="font-size: 12px; margin-top: 0; margin-bottom: 12px; color: var(--color-muted-text); font-weight: 500;">
+                                Insert your friend's Qiko ID or registered email address:
+                            </p>
+                            <div style="display: flex; gap: 8px; width: 100%;">
+                                <input type="text" id="connect-input-id" class="form-control" placeholder="Qiko ID or email address" style="flex: 1; height: 38px; border-radius: 10px; background-color: rgba(255, 255, 255, 0.04); border: 1px solid var(--color-border); padding: 10px 12px; font-size: 13px; color: var(--color-text);">
+                                <button type="button" id="btn-connect-apply" class="btn-upgraded btn-primary-upgraded" style="width: auto; height: 38px; font-size: 12.5px; padding: 0 16px; border-radius: 10px;">
+                                    <span class="material-symbols-outlined">person_add</span>
+                                    Add
+                                </button>
+                            </div>
+                            <div id="connect-error-msg" class="error-text hide" style="margin-top: 6px;"></div>
+                        </div>
+
+                        <!-- Share Invite Glass Panel -->
+                        <div class="glass-panel">
+                            <h3 class="setup-title" style="margin-top: 0; margin-bottom: 8px; font-size: 14px; color: var(--color-primary);">Share Your Invite</h3>
+                            <button type="button" id="btn-copy-magic-link" class="btn-upgraded btn-outline-upgraded" style="height: 38px; font-size: 13px; margin-bottom: 14px;">
+                                <span class="material-symbols-outlined">link</span>
+                                Copy Magic Invite Link
+                            </button>
+                            
+                            <p class="setup-description" style="font-size: 12px; margin-top: 0; margin-bottom: 8px; color: var(--color-muted-text); font-weight: 500;">Or copy your Qiko ID manually:</p>
+                            
+                            <div class="id-display-glass" style="margin-bottom: 0;">
+                                <input type="text" id="connect-my-id" class="id-input-glass" readonly value="qx-xxxx-xxxx-0">
+                                <button type="button" id="btn-connect-copy-my-id" class="btn-copy-in" title="Copy Qiko ID" style="right: 8px; background: none; border: none;">
+                                    <span class="material-symbols-outlined" style="font-size: 18px; color: var(--color-primary);">content_copy</span>
+                                    <span id="connect-copy-tooltip" class="copy-tooltip">Copy</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upgraded Footer -->
+                    <footer class="welcome-footer-upgraded" style="border-top: 1px solid var(--color-border); margin-top: auto; opacity: 0.85;">
+                        <div class="welcome-footer-left">
+                            <span>© Qiko 2026 • v0.1</span>
+                        </div>
+                        <div class="welcome-footer-right">
+                            <span class="welcome-encrypted-dot"></span>
+                            <span>P2P ENCRYPTED</span>
+                        </div>
+                    </footer>
                 </div>
             </div>
         </main>
@@ -174,26 +266,69 @@ import '../../styles/chat/style.css';
     width: 100vw;
     height: 100dvh;
     height: 100vh; /* Fallback */
-    padding: 0;
-    background-color: var(--color-bg) !important;
+    padding: 12px;
+    background-color: transparent !important;
     overflow: hidden;
     box-sizing: border-box;
   }
   .app-layout {
     width: 100% !important;
+    height: 100% !important;
     max-width: 1520px !important;
-    height: 85dvh !important;
-    height: 85vh !important; /* Fallback */
     border: none !important;
     box-shadow: none !important;
     overflow: hidden;
+    background-color: transparent !important;
+  }
+  #scene-user-profile, #scene-connect {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 20px;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+  #scene-user-profile .logins-container-upgraded,
+  #scene-connect .logins-container-upgraded {
+    max-width: 500px !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 520px;
+    background: rgba(255, 255, 255, 0.02) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--color-border) !important;
+    border-radius: 20px !important;
+    padding: 32px 28px !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: var(--color-text) !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15) !important;
+    margin: auto;
+  }
+  [data-theme="light"] #scene-user-profile .logins-container-upgraded,
+  [data-theme="light"] #scene-connect .logins-container-upgraded {
+    background: rgba(255, 255, 255, 0.45) !important;
+    box-shadow: 0 20px 50px rgba(94, 129, 172, 0.08) !important;
   }
   @media (min-width: 768px) {
+    .chat-dashboard-page-wrapper {
+      padding: 32px 24px;
+    }
     .app-layout {
-      height: 88dvh !important;
-      height: 88vh !important; /* Fallback */
+      height: 100% !important;
       border: 1px solid var(--color-border) !important;
-      border-radius: 4px !important;
+      border-radius: 20px !important;
+      background: var(--color-bg) !important;
+      box-shadow: 0 12px 40px var(--color-shadow) !important;
+    }
+    [data-theme="light"] .app-layout {
+      background: #ffffff !important;
+      border: 1px solid rgba(94, 129, 172, 0.12) !important;
+      box-shadow: 0 12px 40px rgba(94, 129, 172, 0.12) !important;
     }
   }
 </style>
