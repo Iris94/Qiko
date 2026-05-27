@@ -1,5 +1,93 @@
+class ConnectionWrapper {
+  constructor(extConn, webConn, baseId) {
+    this.extConn = extConn;
+    this.webConn = webConn;
+    this.baseId = baseId;
+    this.openListeners = new Map();
+    this.errorListeners = new Map();
+  }
+
+  get open() {
+    return (this.extConn && this.extConn.open) || (this.webConn && this.webConn.open);
+  }
+
+  send(data) {
+    if (this.extConn && this.extConn.open) {
+      this.extConn.send(data);
+    } else if (this.webConn && this.webConn.open) {
+      this.webConn.send(data);
+    } else {
+      throw new Error("Connection is not open.");
+    }
+  }
+
+  on(event, callback) {
+    if (event === 'open') {
+      const onOpen = () => {
+        callback();
+        this.off('open', callback);
+      };
+      this.openListeners.set(callback, onOpen);
+      this.extConn.on('open', onOpen);
+      this.webConn.on('open', onOpen);
+    } else if (event === 'error') {
+      let extFailed = false;
+      let webFailed = false;
+      const onError = (err) => {
+        if (err && err.type === 'peer-unavailable') {
+          if (err.message && err.message.includes(this.baseId + '-ext')) extFailed = true;
+          if (err.message && err.message.includes(this.baseId + '-web')) webFailed = true;
+        } else {
+          extFailed = true;
+          webFailed = true;
+        }
+        if (extFailed && webFailed) {
+          callback(err);
+          this.off('error', callback);
+        }
+      };
+      this.errorListeners.set(callback, onError);
+      this.extConn.on('error', onError);
+      this.webConn.on('error', onError);
+    } else {
+      this.extConn.on(event, callback);
+      this.webConn.on(event, callback);
+    }
+  }
+
+  off(event, callback) {
+    if (event === 'open') {
+      const wrapped = this.openListeners.get(callback);
+      if (wrapped) {
+        this.extConn.off('open', wrapped);
+        this.webConn.off('open', wrapped);
+        this.openListeners.delete(callback);
+      }
+    } else if (event === 'error') {
+      const wrapped = this.errorListeners.get(callback);
+      if (wrapped) {
+        this.extConn.off('error', wrapped);
+        this.webConn.off('error', wrapped);
+        this.errorListeners.delete(callback);
+      }
+    } else {
+      this.extConn.off(event, callback);
+      this.webConn.off(event, callback);
+    }
+  }
+
+  close() {
+    if (this.extConn) this.extConn.close();
+    if (this.webConn) this.webConn.close();
+  }
+
+  emit(event, ...args) {
+    // compatibility helper
+  }
+}
+
 let peer = null;
-const activeConnections = new Map(); // peerId -> DataConnection
+const activeConnections = new Map(); // peerId -> DataConnection/ConnectionWrapper
 
 // Callbacks
 let onMessageCallback = null;
@@ -13,9 +101,13 @@ let onPeerErrorCallback = null;
  * @param {Object} callbacks - Callback functions for Peer events.
  */
 export function initChatEngine(myQikoId, callbacks = {}) {
+  const isExtension = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id;
+  const suffix = isExtension ? '-ext' : '-web';
+  const registeredPeerId = myQikoId.endsWith(suffix) ? myQikoId : (myQikoId + suffix);
+
   if (peer && !peer.destroyed) {
-    if (peer.id === myQikoId) {
-      console.log("PeerJS already initialized for Qiko ID:", myQikoId);
+    if (peer.id === registeredPeerId) {
+      console.log("PeerJS already initialized for Qiko ID:", registeredPeerId);
       return peer;
     }
     peer.destroy();
@@ -25,10 +117,10 @@ export function initChatEngine(myQikoId, callbacks = {}) {
   onConnectionStateChangeCallback = callbacks.onConnectionStateChange || null;
   onPeerErrorCallback = callbacks.onPeerError || null;
 
-  console.log("Initializing PeerJS client with Qiko ID:", myQikoId);
+  console.log("Initializing PeerJS client with Qiko ID:", registeredPeerId);
 
   // Initialize Peer. PeerJS uses default cloud servers if no config is passed.
-  peer = new Peer(myQikoId, {
+  peer = new Peer(registeredPeerId, {
     debug: 1,
     host: '0.peerjs.com',
     port: 443,
@@ -46,14 +138,15 @@ export function initChatEngine(myQikoId, callbacks = {}) {
       const match = err.message.match(/Could not connect to peer ([\w-]+)/);
       const targetPeerId = match ? match[1] : null;
       if (targetPeerId) {
-        console.warn(`[ChatEngine] Peer ${targetPeerId} is offline or unavailable.`);
-        const conn = activeConnections.get(targetPeerId);
+        const basePeerId = targetPeerId.replace(/-ext$|-web$/, '');
+        console.warn(`[ChatEngine] Peer ${basePeerId} is offline or unavailable.`);
+        const conn = activeConnections.get(basePeerId);
         if (conn) {
           if (typeof conn.emit === 'function') {
             conn.emit('error', err);
           }
           conn.close();
-          activeConnections.delete(targetPeerId);
+          activeConnections.delete(basePeerId);
         }
       }
       return;
@@ -84,43 +177,58 @@ export function initChatEngine(myQikoId, callbacks = {}) {
  * @param {DataConnection} conn
  */
 function setupConnectionListeners(conn) {
-  const peerId = conn.peer;
-  activeConnections.set(peerId, conn);
+  const fullPeerId = conn.peer;
+  const basePeerId = fullPeerId.replace(/-ext$|-web$/, '');
 
   conn.on('open', () => {
-    console.log("Data connection opened with:", peerId);
+    console.log("Data connection opened with:", basePeerId);
+    
+    // Check if we already have an open connection for this peer
+    const existing = activeConnections.get(basePeerId);
+    if (existing && existing !== conn && existing.open) {
+      console.log("Closing redundant connection to:", fullPeerId);
+      conn.close();
+      return;
+    }
+
+    activeConnections.set(basePeerId, conn);
     if (onConnectionStateChangeCallback) {
-      onConnectionStateChangeCallback(peerId, 'open');
+      onConnectionStateChangeCallback(basePeerId, 'open');
     }
   });
 
   conn.on('data', (data) => {
-    console.log("Received data from:", peerId, data);
+    console.log("Received data from:", basePeerId, data);
     if (onMessageCallback && data && data.type === 'chat') {
-      onMessageCallback(peerId, {
+      onMessageCallback(basePeerId, {
         text: data.text,
         timestamp: data.timestamp || Date.now(),
-        sender: data.sender || peerId
+        sender: data.sender || basePeerId
       });
     }
   });
 
   conn.on('close', () => {
-    console.log("Data connection closed with:", peerId);
-    activeConnections.delete(peerId);
+    console.log("Data connection closed with:", basePeerId);
+    if (activeConnections.get(basePeerId) === conn) {
+      activeConnections.delete(basePeerId);
+    }
     if (onConnectionStateChangeCallback) {
-      onConnectionStateChangeCallback(peerId, 'close');
+      onConnectionStateChangeCallback(basePeerId, 'close');
     }
   });
 
   conn.on('error', (err) => {
     if (err && err.message && err.message.includes("Could not connect to peer")) {
-      console.warn(`Connection error with ${peerId} (user offline):`, err.message);
+      console.warn(`Connection error with ${basePeerId} (user offline):`, err.message);
     } else {
-      console.error(`Connection error with ${peerId}:`, err);
+      console.error(`Connection error with ${basePeerId}:`, err);
+    }
+    if (activeConnections.get(basePeerId) === conn) {
+      activeConnections.delete(basePeerId);
     }
     if (onConnectionStateChangeCallback) {
-      onConnectionStateChangeCallback(peerId, 'error', err);
+      onConnectionStateChangeCallback(basePeerId, 'error', err);
     }
   });
 }
@@ -129,7 +237,7 @@ function setupConnectionListeners(conn) {
  * Connect to a target peer.
  *
  * @param {string} peerId
- * @returns {DataConnection}
+ * @returns {DataConnection|ConnectionWrapper}
  */
 export function connectToPeer(peerId) {
   if (!peer || peer.destroyed) {
@@ -144,13 +252,15 @@ export function connectToPeer(peerId) {
     }
   }
 
-  console.log("Initiating WebRTC connection to peer:", peerId);
-  const conn = peer.connect(peerId, {
-    reliable: true
-  });
+  console.log("Initiating WebRTC connection to peer (base):", peerId);
+  const extConn = peer.connect(peerId + '-ext', { reliable: true });
+  const webConn = peer.connect(peerId + '-web', { reliable: true });
 
-  setupConnectionListeners(conn);
-  return conn;
+  setupConnectionListeners(extConn);
+  setupConnectionListeners(webConn);
+
+  const wrapper = new ConnectionWrapper(extConn, webConn, peerId);
+  return wrapper;
 }
 
 /**
