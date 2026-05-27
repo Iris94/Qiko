@@ -853,7 +853,7 @@ body {
     width: 44px;
     height: 100%;
     border-right: 1px solid var(--color-border);
-    background-color: var(--color-surface);
+    background-color: transparent;
     display: flex;
     flex-direction: column;
     justify-content: space-between;

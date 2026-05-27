@@ -172,7 +172,8 @@ import '../../styles/chat/style.css';
     align-items: center;
     justify-content: center;
     width: 100vw;
-    height: 100vh;
+    height: 100dvh;
+    height: 100vh; /* Fallback */
     padding: 0;
     background-color: var(--color-bg) !important;
     overflow: hidden;
@@ -181,14 +182,16 @@ import '../../styles/chat/style.css';
   .app-layout {
     width: 100% !important;
     max-width: 1520px !important;
-    height: 100vh !important;
+    height: 85dvh !important;
+    height: 85vh !important; /* Fallback */
     border: none !important;
     box-shadow: none !important;
     overflow: hidden;
   }
   @media (min-width: 768px) {
     .app-layout {
-      height: 88vh !important;
+      height: 88dvh !important;
+      height: 88vh !important; /* Fallback */
       border: 1px solid var(--color-border) !important;
       border-radius: 4px !important;
     }
