@@ -882,7 +882,7 @@ async function initDashboardScreen() {
       if (typeof chrome !== 'undefined' && chrome.offscreen) {
         await new Promise((resolve, reject) => {
           chrome.runtime.sendMessage({
-            target: 'offscreen',
+            target: 'background',
             type: 'sendMessage',
             partnerId: partnerId,
             text: msgText

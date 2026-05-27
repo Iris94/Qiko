@@ -137,6 +137,7 @@ async function init() {
   } catch (err) {
     console.error("[Offscreen] Failed to initialize PeerJS chat engine:", err);
   }
+  chrome.runtime.sendMessage({ target: 'background', type: 'offscreen_ready' }).catch(() => {});
 }
 
 // Listen for storage changes
@@ -160,6 +161,10 @@ storageOnChanged.addListener((changes) => {
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.target === 'offscreen') {
+    if (message.type === 'ping') {
+      sendResponse({ success: true });
+      return true;
+    }
     if (message.type === 'sendMessage') {
       console.log("[Offscreen] Sending message to:", message.partnerId);
       chatEngine.sendMessage(message.partnerId, message.text, myQikoId)
