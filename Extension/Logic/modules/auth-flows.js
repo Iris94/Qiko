@@ -13,6 +13,11 @@ let tempToken = null;
 let tempRefreshToken = null;
 
 export async function initStartScreen(uiManager) {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('logout_reason') === 'session_expired') {
+    uiManager.showCustomAlert("You have been signed out because a new session was started elsewhere.");
+  }
+
   const pending = await storage.get('qiko_pending_verification');
   if (pending.qiko_pending_verification) {
     window.location.href = getRoute('logins', { flow: 'pending_verification' });

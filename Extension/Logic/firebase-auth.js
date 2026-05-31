@@ -1,5 +1,31 @@
 import { callApi } from './api-client.js';
 import { AUTH_ENDPOINTS } from './api-endpoints.js';
+import { CONFIG } from './config.js';
+
+/**
+ * Refreshes an expired Firebase ID token using a refresh token.
+ *
+ * @param {string} refreshToken
+ * @returns {Promise<{idToken: string, refreshToken: string}>}
+ */
+export async function firebaseRefreshToken(refreshToken) {
+  const url = `https://securetoken.googleapis.com/v1/token?key=${CONFIG.FIREBASE_API_KEY}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`
+  });
+  if (!response.ok) {
+    const err = new Error('Token refresh failed');
+    err.status = response.status;
+    throw err;
+  }
+  const data = await response.json();
+  return {
+    idToken: data.id_token,
+    refreshToken: data.refresh_token
+  };
+}
 
 /**
  * Signs in anonymously to Firebase Auth.

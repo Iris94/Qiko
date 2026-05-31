@@ -1,5 +1,6 @@
 import { callApi } from './api-client.js';
 import { DB_ENDPOINTS } from './api-endpoints.js';
+export { DB_ENDPOINTS };
 
 /**
  * Hash a string using SHA-256 (Web Crypto API).
@@ -57,6 +58,11 @@ export async function saveUserProfile(uid, profileData, token) {
  */
 export async function patchUserProfile(uid, partialData, token) {
   return await callApi(DB_ENDPOINTS.user(uid), 'PATCH', partialData, token);
+}
+
+export async function saveSessionId(uid, sessionId, token) {
+  const url = `${DB_ENDPOINTS.user(uid).replace('.json', '')}/session_id.json`;
+  return await callApi(url, 'PUT', sessionId, token);
 }
 
 /**

@@ -87,9 +87,9 @@ class ConnectionWrapper {
 }
 
 let peer = null;
-const activeConnections = new Map(); // peerId -> DataConnection/ConnectionWrapper
+let suspended = false;
+const activeConnections = new Map();
 
-// Callbacks
 let onMessageCallback = null;
 let onConnectionStateChangeCallback = null;
 let onPeerErrorCallback = null;
@@ -159,8 +159,12 @@ export function initChatEngine(myQikoId, callbacks = {}) {
   });
 
   peer.on('disconnected', () => {
-    console.log("Peer disconnected from coordination server. Reconnecting...");
-    peer.reconnect();
+    if (!suspended) {
+      console.log("Peer disconnected from coordination server. Reconnecting...");
+      peer.reconnect();
+    } else {
+      console.log("Peer disconnected (suspended). Will not auto-reconnect.");
+    }
   });
 
   peer.on('close', () => {
@@ -183,12 +187,10 @@ function setupConnectionListeners(conn) {
   conn.on('open', () => {
     console.log("Data connection opened with:", basePeerId);
     
-    // Check if we already have an open connection for this peer
     const existing = activeConnections.get(basePeerId);
-    if (existing && existing !== conn && existing.open) {
-      console.log("Closing redundant connection to:", fullPeerId);
-      conn.close();
-      return;
+    if (existing && existing !== conn) {
+      console.log("Replacing old connection with new one for:", basePeerId);
+      existing.close();
     }
 
     activeConnections.set(basePeerId, conn);
@@ -320,9 +322,50 @@ export function sendMessage(peerId, text, myQikoId) {
  * Disconnect and destroy the Peer instance.
  */
 export function disconnectChatEngine() {
+  suspended = false;
   if (peer) {
     peer.destroy();
     peer = null;
   }
   activeConnections.clear();
+}
+
+/**
+ * Temporarily suspend the peer connection without destroying it.
+ * The peer ID remains valid on the server and can be resumed.
+ */
+export function suspendChatEngine() {
+  suspended = true;
+  for (const conn of activeConnections.values()) {
+    if (conn && typeof conn.close === 'function') {
+      conn.close();
+    }
+  }
+  activeConnections.clear();
+  if (peer && !peer.destroyed && !peer.disconnected) {
+    peer.disconnect();
+  }
+}
+
+/**
+ * Resume a previously suspended peer connection.
+ * Returns a Promise that resolves when the peer is reconnected.
+ */
+export function resumeChatEngine() {
+  suspended = false;
+  if (peer && !peer.destroyed && peer.disconnected) {
+    return new Promise((resolve) => {
+      const onOpen = () => {
+        peer.off('open', onOpen);
+        resolve();
+      };
+      peer.on('open', onOpen);
+      peer.reconnect();
+      setTimeout(() => {
+        peer.off('open', onOpen);
+        resolve();
+      }, 5000);
+    });
+  }
+  return Promise.resolve();
 }

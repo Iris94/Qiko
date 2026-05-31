@@ -13,10 +13,40 @@ import {
 } from './contact-flows.js';
 
 export async function initDashboardScreen(uiManager) {
+  const isExtension = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id;
+  let isSessionActive = true;
+  let mySessionId = null;
+  if (!isExtension) {
+    mySessionId = sessionStorage.getItem('qiko_session_id');
+    if (!mySessionId) {
+      mySessionId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      sessionStorage.setItem('qiko_session_id', mySessionId);
+    }
+  }
+
   const state = await storage.get(['qiko_user_id', 'qiko_email', 'qiko_username', 'qiko_id', 'qiko_registered', 'qiko_token', 'qiko_refresh_token']);
   if (!state.qiko_user_id) {
     window.location.href = getRoute('start');
     return;
+  }
+
+  if (!isExtension && state.qiko_refresh_token) {
+    try {
+      const refreshed = await firebaseAuth.firebaseRefreshToken(state.qiko_refresh_token);
+      state.qiko_token = refreshed.idToken;
+      state.qiko_refresh_token = refreshed.refreshToken;
+      await storage.set({
+        qiko_token: refreshed.idToken,
+        qiko_refresh_token: refreshed.refreshToken
+      });
+    } catch (err) {
+      console.warn("Token refresh failed on dashboard load:", err);
+      if (err.status === 400) {
+        await storage.clear();
+        window.location.href = getRoute('start');
+        return;
+      }
+    }
   }
 
   const userDisplay = document.getElementById('dashboard-user-display');
@@ -108,6 +138,10 @@ export async function initDashboardScreen(uiManager) {
     const msgText = inputMessage.value.trim();
     if (!msgText) return;
 
+    if (!isExtension) {
+      await reclaimSession();
+    }
+
     const partnerId = state.qiko_active_partner;
     if (!partnerId) return;
 
@@ -183,61 +217,83 @@ export async function initDashboardScreen(uiManager) {
   initProfileTab(state, uiManager);
   initConnectTab(state, uiManager, switchHomeScene);
 
-  // Initialize Chat Engine (PeerJS)
-  if (typeof chrome !== 'undefined' && chrome.offscreen) {
-    chrome.runtime.sendMessage({ type: 'CHECK_OFFSCREEN' });
-  } else {
-    try {
-      chatEngine.initChatEngine(state.qiko_id, {
-        onMessage: async (senderId, data) => {
-          console.log(`Received message from ${senderId}:`, data);
-          const historyKey = `qiko_history_${senderId}`;
-          const historyData = await storage.get(historyKey);
-          const history = historyData[historyKey] || [];
-          
-          const isDuplicate = history.some(m => m.timestamp === data.timestamp && m.text === data.text);
-          if (!isDuplicate) {
-            history.push({
-              sender: senderId,
-              text: data.text,
-              timestamp: data.timestamp,
-              received: true
-            });
-            if (history.length > 100) {
-              history.shift();
-            }
-            await storage.set({ [historyKey]: history });
-            
-            try {
-              if (state.qiko_user_id && state.qiko_token) {
-                const contacts = await firebaseDb.getContacts(state.qiko_user_id, state.qiko_token);
-                if (contacts && !contacts.includes(senderId)) {
-                  contacts.push(senderId);
-                  await firebaseDb.updateContacts(state.qiko_user_id, contacts, state.qiko_token);
-                }
-              }
-            } catch (e) {
-              console.error("[WebPopup] Failed to auto-add contact on message:", e);
-            }
-            
-            await loadAndRenderContacts(state, uiManager, (id) => selectPartner(id, state, uiManager, switchHomeScene));
-            
-            if (state.qiko_active_partner === senderId) {
-              uiManager.renderChatLog(history, state.qiko_id);
-            } else if (!state.qiko_active_partner) {
-              await selectPartner(senderId, state, uiManager, switchHomeScene);
-            }
-          }
-        },
-        onConnectionStateChange: (peerId, status, err) => {
-          console.log(`P2P Status with ${peerId}:`, status);
-          loadAndRenderContacts(state, uiManager, (id) => selectPartner(id, state, uiManager, switchHomeScene));
-        }
+  const startChatEngine = () => {
+    if (typeof chrome !== 'undefined' && chrome.offscreen) {
+      chrome.runtime.sendMessage({ type: 'CHECK_OFFSCREEN' }, () => {
+        chrome.runtime.sendMessage({ target: 'offscreen', type: 'reclaimSession' }).catch(() => {});
       });
-    } catch (err) {
-      console.error("Failed to initialize PeerJS chat engine in-page:", err);
+    } else {
+      try {
+        chatEngine.initChatEngine(state.qiko_id, {
+          onMessage: async (senderId, data) => {
+            console.log(`Received message from ${senderId}:`, data);
+            const historyKey = `qiko_history_${senderId}`;
+            const historyData = await storage.get(historyKey);
+            const history = historyData[historyKey] || [];
+            
+            const isDuplicate = history.some(m => m.timestamp === data.timestamp && m.text === data.text);
+            if (!isDuplicate) {
+              history.push({
+                sender: senderId,
+                text: data.text,
+                timestamp: data.timestamp,
+                received: true
+              });
+              if (history.length > 100) {
+                history.shift();
+              }
+              await storage.set({ [historyKey]: history });
+              
+              try {
+                if (state.qiko_user_id && state.qiko_token) {
+                  const contacts = await firebaseDb.getContacts(state.qiko_user_id, state.qiko_token);
+                  if (contacts && !contacts.includes(senderId)) {
+                    contacts.push(senderId);
+                    await firebaseDb.updateContacts(state.qiko_user_id, contacts, state.qiko_token);
+                  }
+                }
+              } catch (e) {
+                console.error("[WebPopup] Failed to auto-add contact on message:", e);
+              }
+              
+              await loadAndRenderContacts(state, uiManager, (id) => selectPartner(id, state, uiManager, switchHomeScene));
+              
+              if (state.qiko_active_partner === senderId) {
+                uiManager.renderChatLog(history, state.qiko_id);
+              } else if (!state.qiko_active_partner) {
+                await selectPartner(senderId, state, uiManager, switchHomeScene);
+              }
+            }
+          },
+          onConnectionStateChange: (peerId, status, err) => {
+            console.log(`P2P Status with ${peerId}:`, status);
+            loadAndRenderContacts(state, uiManager, (id) => selectPartner(id, state, uiManager, switchHomeScene));
+          }
+        });
+      } catch (err) {
+        console.error("Failed to initialize PeerJS chat engine in-page:", err);
+      }
     }
+  };
+
+  const reclaimSession = async () => {
+    if (isExtension || isSessionActive) return;
+    isSessionActive = true;
+    try {
+      await firebaseDb.saveSessionId(state.qiko_user_id, mySessionId, state.qiko_token);
+      await chatEngine.resumeChatEngine();
+    } catch (err) {
+      console.error("Failed to reclaim session:", err);
+    }
+  };
+
+  if (!isExtension) {
+    window.addEventListener('focus', () => {
+      reclaimSession();
+    });
   }
+
+  startChatEngine();
 
   const activePartnerRes = await storage.get('qiko_active_partner');
   if (activePartnerRes.qiko_active_partner) {
@@ -309,6 +365,29 @@ export async function initDashboardScreen(uiManager) {
       chrome.storage.local.set({ qiko_popup_open: false });
     }
   });
+
+  if (!isExtension) {
+    firebaseDb.saveSessionId(state.qiko_user_id, mySessionId, state.qiko_token).catch(() => {});
+
+    const baseDbUrl = firebaseDb.DB_ENDPOINTS.user(state.qiko_user_id).replace('.json', '');
+    const sseUrl = `${baseDbUrl}/session_id.json?auth=${encodeURIComponent(state.qiko_token)}`;
+    const sse = new EventSource(sseUrl);
+
+    sse.addEventListener('put', (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        const remoteSessionId = payload.data;
+        if (remoteSessionId && remoteSessionId !== mySessionId) {
+          isSessionActive = false;
+          chatEngine.suspendChatEngine();
+        }
+      } catch (err) {}
+    });
+
+    window.addEventListener('unload', () => {
+      sse.close();
+    });
+  }
 }
 
 function initProfileTab(state, uiManager) {

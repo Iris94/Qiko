@@ -4,6 +4,8 @@ import * as firebaseDb from './Logic/firebase-db.js';
 let myQikoId = null;
 let myUid = null;
 let myToken = null;
+let sseConnection = null;
+let isSessionActive = true;
 
 // Storage Bridge over runtime messaging
 const storage = {
@@ -48,6 +50,11 @@ chrome.runtime.onMessage.addListener((message) => {
 });
 
 async function init() {
+  if (sseConnection) {
+    sseConnection.close();
+    sseConnection = null;
+  }
+
   const state = await storage.get(['qiko_id', 'qiko_user_id', 'qiko_token']);
   myQikoId = state.qiko_id;
   myUid = state.qiko_user_id;
@@ -137,6 +144,34 @@ async function init() {
   } catch (err) {
     console.error("[Offscreen] Failed to initialize PeerJS chat engine:", err);
   }
+
+  if (myUid && myToken) {
+    const storageRes = await storage.get('qiko_session_id');
+    let mySessionId = storageRes.qiko_session_id;
+    if (!mySessionId) {
+      mySessionId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      await storage.set({ qiko_session_id: mySessionId });
+    }
+
+    if (isSessionActive) {
+      await firebaseDb.saveSessionId(myUid, mySessionId, myToken).catch(() => {});
+    }
+
+    const baseDbUrl = firebaseDb.DB_ENDPOINTS.user(myUid).replace('.json', '');
+    const sseUrl = `${baseDbUrl}/session_id.json?auth=${encodeURIComponent(myToken)}`;
+    sseConnection = new EventSource(sseUrl);
+
+    sseConnection.addEventListener('put', async (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        const remoteSessionId = payload.data;
+        if (remoteSessionId && remoteSessionId !== mySessionId) {
+          isSessionActive = false;
+          chatEngine.suspendChatEngine();
+        }
+      } catch (err) {}
+    });
+  }
 }
 
 // Listen for storage changes
@@ -147,6 +182,10 @@ storageOnChanged.addListener((changes) => {
     } else {
       console.log("[Offscreen] Qiko ID removed. Disconnecting chat engine.");
       chatEngine.disconnectChatEngine();
+      if (sseConnection) {
+        sseConnection.close();
+        sseConnection = null;
+      }
     }
   }
   if (changes.qiko_user_id) {
@@ -157,9 +196,28 @@ storageOnChanged.addListener((changes) => {
   }
 });
 
+async function reclaimSession() {
+  if (isSessionActive) return;
+  isSessionActive = true;
+  try {
+    const storageRes = await storage.get('qiko_session_id');
+    const mySessionId = storageRes.qiko_session_id;
+    if (mySessionId && myUid && myToken) {
+      await firebaseDb.saveSessionId(myUid, mySessionId, myToken);
+    }
+    await chatEngine.resumeChatEngine();
+  } catch (err) {
+    console.error("[Offscreen] Failed to reclaim session:", err);
+  }
+}
+
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.target === 'offscreen') {
+    if (message.type === 'reclaimSession') {
+      reclaimSession().then(() => sendResponse({ success: true }));
+      return true;
+    }
     if (message.type === 'sendMessage') {
       console.log("[Offscreen] Sending message to:", message.partnerId);
       chatEngine.sendMessage(message.partnerId, message.text, myQikoId)
@@ -170,7 +228,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           console.error("[Offscreen] Send failed:", err);
           sendResponse({ success: false, error: err.message || 'Connection failed' });
         });
-      return true; // async response
+      return true;
     }
   }
 });
