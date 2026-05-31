@@ -3,7 +3,7 @@ import * as firebaseDb from '../firebase-db.js';
 
 export async function initThemeSwitcher() {
   const state = await storage.get('qiko_theme');
-  const currentTheme = state.qiko_theme || 'system';
+  const currentTheme = state.qiko_theme || 'dark';
   applyTheme(currentTheme);
 
   document.querySelectorAll('.theme-select-dropdown').forEach(select => {
@@ -18,14 +18,8 @@ export async function initThemeSwitcher() {
   if (btnThemeToggle) {
     btnThemeToggle.addEventListener('click', async () => {
       const s = await storage.get('qiko_theme');
-      const current = s.qiko_theme || 'system';
-      
-      let nextTheme = 'light';
-      if (current === 'light') {
-        nextTheme = 'dark';
-      } else if (current === 'dark') {
-        nextTheme = 'system';
-      }
+      const current = s.qiko_theme || 'dark';
+      const nextTheme = current === 'dark' ? 'light' : 'dark';
       
       applyTheme(nextTheme);
       await storage.set({ qiko_theme: nextTheme });
@@ -34,26 +28,16 @@ export async function initThemeSwitcher() {
 }
 
 export function applyTheme(theme) {
-  if (theme === 'light' || theme === 'dark') {
-    document.documentElement.setAttribute('data-theme', theme);
-  } else {
-    document.documentElement.removeAttribute('data-theme');
-  }
+  const resolvedTheme = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', resolvedTheme);
 
   document.querySelectorAll('.theme-select-dropdown').forEach(select => {
-    select.value = theme;
+    select.value = resolvedTheme;
   });
 
   const themeIcon = document.getElementById('theme-icon-svg');
   if (themeIcon) {
-    let effectiveDark = false;
-    if (theme === 'dark') {
-      effectiveDark = true;
-    } else if (theme === 'system') {
-      effectiveDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    
-    if (effectiveDark) {
+    if (resolvedTheme === 'dark') {
       themeIcon.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
       themeIcon.setAttribute('title', 'Dark Theme (Click to toggle)');
     } else {

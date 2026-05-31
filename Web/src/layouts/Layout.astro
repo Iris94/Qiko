@@ -98,6 +98,30 @@ const {
       --transition:   0.2s ease-in-out;
     }
 
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg:           #2e3440; /* Nord 0 */
+        --bg-alt:       #2e3440; /* Nord 0 - match body */
+        --surface:      #3b4252; /* Nord 1 - distinct card surface */
+        --surface-2:    #434c5e; /* Nord 2 */
+        --border:       #4c566a; /* Nord 3 */
+        --text:         #eceff4; /* Nord 6 */
+        --muted:        #d8dee9; /* Nord 4 */
+        --primary:      #88c0d0; /* Nord 8 */
+        --primary-rgb:  136, 192, 208;
+        --primary-lt:   #81a1c1; /* Nord 9 */
+        --secondary:    #8fbcbb; /* Nord 7 */
+        --tertiary:     #b48ead; /* Nord 15 */
+        --accent:       #81a1c1; /* Nord 9 */
+        --error:        #bf616a; /* Nord 11 */
+        --success:      #a3be8c; /* Nord 14 */
+        --btn-primary-bg: #88c0d0; /* Nord 8 */
+        --btn-primary-text: #2e3440; /* Nord 0 */
+        --btn-outline-text: #eceff4; /* Nord 6 */
+        --btn-outline-border: #4c566a; /* Nord 3 */
+      }
+    }
+
     [data-theme="dark"] {
       --bg:           #2e3440; /* Nord 0 */
       --bg-alt:       #2e3440; /* Nord 0 - match body */
@@ -135,6 +159,11 @@ const {
     }
     [data-theme="dark"] body {
       background: radial-gradient(circle at 0% 0%, #2e3440 0%, #0d131e 100%);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) body {
+        background: radial-gradient(circle at 0% 0%, #2e3440 0%, #0d131e 100%);
+      }
     }
     img { display: block; max-width: 100%; }
     a { color: inherit; text-decoration: none; }
@@ -257,25 +286,26 @@ const {
   <script>
     const html = document.documentElement;
 
-    // ── Theme ───────────────────────────────────────────────
     function applyTheme(theme: string) {
-      html.setAttribute('data-theme', theme);
+      const resolvedTheme = theme === 'light' ? 'light' : 'dark';
+      html.setAttribute('data-theme', resolvedTheme);
+
       const icon = document.getElementById('theme-icon');
-      if (icon) icon.textContent = theme === 'dark' ? 'light_mode' : 'dark_mode';
+      if (icon) {
+        icon.textContent = resolvedTheme === 'dark' ? 'light_mode' : 'dark_mode';
+      }
     }
 
     document.getElementById('theme-toggle')?.addEventListener('click', () => {
-      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-      applyTheme(next);
-      localStorage.setItem('qiko-theme', next);
+      const currentTheme = localStorage.getItem('qiko_theme') || 'dark';
+      const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+      applyTheme(nextTheme);
+      localStorage.setItem('qiko_theme', nextTheme);
     });
 
-    const saved = localStorage.getItem('qiko-theme');
-    if (saved) {
-      applyTheme(saved);
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      applyTheme('dark');
-    }
+    const saved = localStorage.getItem('qiko_theme') || 'dark';
+    applyTheme(saved);
 
     // ── Smooth scroll ────────────────────────────────────────
     document.querySelectorAll<HTMLAnchorElement>('a[href^="#"]').forEach(a => {

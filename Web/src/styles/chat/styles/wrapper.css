@@ -10,6 +10,35 @@
     --color-shadow: rgba(94, 129, 172, 0.12);
     --color-white: #FFFFFF;
 
+    --color-gradient-start: #ffffff;
+    --color-gradient-end: #d8dee9;
+    --color-aurora: rgba(94, 129, 172, 0.15);
+
+    --color-sidebar-bg: rgba(255, 255, 255, 0.4);
+    --color-sidebar-border: rgba(94, 129, 172, 0.15);
+    
+    --color-status-badge-bg: rgba(46, 125, 50, 0.15);
+    --color-status-badge-text: #2e7d32;
+    --color-status-badge-border: rgba(46, 125, 50, 0.2);
+    --color-status-dot: #2e7d32;
+    
+    --color-online-indicator: #2e7d32;
+    --color-online-indicator-shadow: rgba(46, 125, 50, 0.4);
+    
+    --color-msg-bubble-received-bg: rgba(255, 255, 255, 0.65);
+    --color-msg-bubble-received-border: rgba(94, 129, 172, 0.12);
+    --color-msg-bubble-received-text: var(--color-text);
+    --color-msg-bubble-received-shadow: rgba(0, 0, 0, 0.02);
+    
+    --color-chat-input-bar-bg: rgba(255, 255, 255, 0.7);
+    --color-chat-input-bar-border: rgba(94, 129, 172, 0.25);
+
+    --color-id-display-bg: rgba(255, 255, 255, 0.6);
+    --color-id-display-border: rgba(94, 129, 172, 0.3);
+
+    --color-btn-primary-text: #ffffff;
+    --color-layout-shadow: rgba(94, 129, 172, 0.12);
+
     --font-display: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
     --font-body: 'Inter', system-ui, -apple-system, sans-serif;
 }
@@ -25,6 +54,35 @@
         --color-border: rgba(136, 192, 208, 0.25);
         --color-bubble-received: #3b4252;
         --color-shadow: rgba(136, 192, 208, 0.25);
+
+        --color-gradient-start: #2e3440;
+        --color-gradient-end: #0d131e;
+        --color-aurora: rgba(136, 192, 208, 0.15);
+
+        --color-sidebar-bg: transparent;
+        --color-sidebar-border: var(--color-border);
+        
+        --color-status-badge-bg: rgba(163, 190, 140, 0.15);
+        --color-status-badge-text: #a3be8c;
+        --color-status-badge-border: transparent;
+        --color-status-dot: #a3be8c;
+        
+        --color-online-indicator: #a3be8c;
+        --color-online-indicator-shadow: rgba(163, 190, 140, 0.4);
+        
+        --color-msg-bubble-received-bg: var(--color-bubble-received);
+        --color-msg-bubble-received-border: transparent;
+        --color-msg-bubble-received-text: var(--color-text);
+        --color-msg-bubble-received-shadow: none;
+        
+        --color-chat-input-bar-bg: rgba(255, 255, 255, 0.03);
+        --color-chat-input-bar-border: var(--color-border);
+
+        --color-id-display-bg: rgba(136, 192, 208, 0.08);
+        --color-id-display-border: rgba(136, 192, 208, 0.25);
+
+        --color-btn-primary-text: #2e3440;
+        --color-layout-shadow: rgba(0, 0, 0, 0.35);
     }
 }
 
@@ -38,6 +96,35 @@
     --color-border: rgba(94, 129, 172, 0.12);
     --color-bubble-received: #f4f6f9;
     --color-shadow: rgba(94, 129, 172, 0.12);
+
+    --color-gradient-start: #ffffff;
+    --color-gradient-end: #d8dee9;
+    --color-aurora: rgba(94, 129, 172, 0.15);
+
+    --color-sidebar-bg: rgba(255, 255, 255, 0.4);
+    --color-sidebar-border: rgba(94, 129, 172, 0.15);
+    
+    --color-status-badge-bg: rgba(46, 125, 50, 0.15);
+    --color-status-badge-text: #2e7d32;
+    --color-status-badge-border: rgba(46, 125, 50, 0.2);
+    --color-status-dot: #2e7d32;
+    
+    --color-online-indicator: #2e7d32;
+    --color-online-indicator-shadow: rgba(46, 125, 50, 0.4);
+    
+    --color-msg-bubble-received-bg: rgba(255, 255, 255, 0.65);
+    --color-msg-bubble-received-border: rgba(94, 129, 172, 0.12);
+    --color-msg-bubble-received-text: var(--color-text);
+    --color-msg-bubble-received-shadow: rgba(0, 0, 0, 0.02);
+    
+    --color-chat-input-bar-bg: rgba(255, 255, 255, 0.7);
+    --color-chat-input-bar-border: rgba(94, 129, 172, 0.25);
+
+    --color-id-display-bg: rgba(255, 255, 255, 0.6);
+    --color-id-display-border: rgba(94, 129, 172, 0.3);
+
+    --color-btn-primary-text: #ffffff;
+    --color-layout-shadow: rgba(94, 129, 172, 0.12);
 }
 
 [data-theme="dark"] {
@@ -50,6 +137,35 @@
     --color-border: rgba(136, 192, 208, 0.25);
     --color-bubble-received: #3b4252;
     --color-shadow: rgba(136, 192, 208, 0.25);
+
+    --color-gradient-start: #2e3440;
+    --color-gradient-end: #0d131e;
+    --color-aurora: rgba(136, 192, 208, 0.15);
+
+    --color-sidebar-bg: transparent;
+    --color-sidebar-border: var(--color-border);
+    
+    --color-status-badge-bg: rgba(163, 190, 140, 0.15);
+    --color-status-badge-text: #a3be8c;
+    --color-status-badge-border: transparent;
+    --color-status-dot: #a3be8c;
+    
+    --color-online-indicator: #a3be8c;
+    --color-online-indicator-shadow: rgba(163, 190, 140, 0.4);
+    
+    --color-msg-bubble-received-bg: var(--color-bubble-received);
+    --color-msg-bubble-received-border: transparent;
+    --color-msg-bubble-received-text: var(--color-text);
+    --color-msg-bubble-received-shadow: none;
+    
+    --color-chat-input-bar-bg: rgba(255, 255, 255, 0.03);
+    --color-chat-input-bar-border: var(--color-border);
+
+    --color-id-display-bg: rgba(136, 192, 208, 0.08);
+    --color-id-display-border: rgba(136, 192, 208, 0.25);
+
+    --color-btn-primary-text: #2e3440;
+    --color-layout-shadow: rgba(0, 0, 0, 0.35);
 }
 
 * {
@@ -63,17 +179,13 @@ body {
     padding: 0;
     font-family: var(--font-body);
     background-color: var(--color-bg);
-    background-image: radial-gradient(circle at 0% 0%, #2e3440 0%, #0d131e 100%);
+    background-image: radial-gradient(circle at 0% 0%, var(--color-gradient-start) 0%, var(--color-gradient-end) 100%);
     color: var(--color-text);
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: background-color 0.2s, color 0.2s;
-}
-
-[data-theme="light"] body {
-    background-image: radial-gradient(circle at 0% 0%, #ffffff 0%, #d8dee9 100%) !important;
 }
 
 .container {
@@ -275,8 +387,9 @@ body {
     display: flex;
     align-items: center;
     gap: 6px;
-    background-color: rgba(163, 190, 140, 0.15);
-    color: #a3be8c;
+    background-color: var(--color-status-badge-bg);
+    color: var(--color-status-badge-text);
+    border: 1px solid var(--color-status-badge-border);
     font-size: 10px;
     font-weight: 700;
     padding: 3px 8px;
@@ -292,7 +405,7 @@ body {
 .status-dot {
     width: 6px;
     height: 6px;
-    background-color: #a3be8c;
+    background-color: var(--color-status-dot);
     border-radius: 50%;
     display: inline-block;
     transition: background-color 0.3s ease;
@@ -657,6 +770,7 @@ body {
     border-radius: 12px;
     padding: 16px 20px;
     height: 100%;
+    min-height: 0;
 }
 
 .chat-partner-header {
@@ -749,8 +863,10 @@ body {
 
 .msg-bubble.received {
     align-self: flex-start;
-    background-color: var(--color-bubble-received);
-    color: var(--color-text);
+    background-color: var(--color-msg-bubble-received-bg);
+    color: var(--color-msg-bubble-received-text);
+    border: 1px solid var(--color-msg-bubble-received-border);
+    box-shadow: var(--color-msg-bubble-received-shadow);
     border-bottom-left-radius: 2px;
 }
 
@@ -758,11 +874,12 @@ body {
     display: flex;
     gap: 12px;
     align-items: center;
-    border-top: 1px solid var(--color-border);
-    padding-top: 12px;
-    padding-bottom: 4px;
+    border-top: 1px solid var(--color-chat-input-bar-border);
+    background-color: var(--color-chat-input-bar-bg);
+    padding: 12px;
     width: 100%;
     box-sizing: border-box;
+    border-radius: 12px;
 }
 
 .chat-input-field {
@@ -792,6 +909,7 @@ body {
 
 .btn-send-svg {
     background: var(--color-primary) !important;
+    color: var(--color-btn-primary-text) !important;
     border: none !important;
     border-radius: 50% !important;
     width: 36px !important;
@@ -805,14 +923,6 @@ body {
     padding: 0 !important;
     margin: 0 !important;
     box-sizing: border-box !important;
-}
-
-[data-theme="light"] .btn-send-svg {
-    color: #ffffff !important;
-}
-
-[data-theme="dark"] .btn-send-svg {
-    color: #2e3440 !important;
 }
 
 .btn-send-svg:hover {
@@ -947,6 +1057,7 @@ body {
     padding: 20px 20px 14px 20px;
     background-color: var(--color-bg);
     transition: background-color 0.2s;
+    min-height: 0;
 }
 
 .scene-container-profile {
@@ -1033,9 +1144,9 @@ body {
     transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 .online-indicator.online {
-    background-color: #a3be8c;
-    border-color: #a3be8c;
-    box-shadow: 0 0 4px #a3be8c;
+    background-color: var(--color-online-indicator);
+    border-color: var(--color-online-indicator);
+    box-shadow: 0 0 4px var(--color-online-indicator-shadow);
 }
 
 .qiko-modal-overlay {
@@ -1118,16 +1229,12 @@ body {
 
 /* ── WhatsApp Desktop Layout Override (Medium & Large screens) ── */
 @media (min-width: 768px) {
-    :root {
-        --color-shadow: transparent !important;
-    }
-
     .app-layout {
         height: 88vh !important;
         max-height: 88vh !important;
         border: 1px solid var(--color-border) !important;
         border-radius: 20px !important;
-        box-shadow: 0 12px 40px var(--color-shadow) !important;
+        box-shadow: 0 12px 40px var(--color-layout-shadow) !important;
         overflow: hidden !important;
         background-color: var(--color-bg) !important;
     }
@@ -1135,7 +1242,7 @@ body {
     .scene-container {
         display: grid !important;
         grid-template-columns: 280px 1fr !important;
-        grid-template-rows: 64px 1fr 40px !important;
+        grid-template-rows: 64px minmax(0, 1fr) 40px !important;
         grid-template-areas:
             "header header"
             "sidebar main"
@@ -1163,6 +1270,7 @@ body {
         grid-area: sidebar !important;
         border-right: 1px solid var(--color-border) !important;
         height: 100% !important;
+        min-height: 0 !important;
         margin: 0 !important;
         padding: 16px 0 !important;
         background-color: transparent !important;
@@ -1249,6 +1357,7 @@ body {
     .chat-main-section {
         grid-area: main !important;
         height: 100% !important;
+        min-height: 0 !important;
         border: none !important;
         border-radius: 0 !important;
         padding: 24px !important;
@@ -1455,18 +1564,12 @@ body {
 
 /* Apply nord gradient background to body on chat pages */
 body {
-    background: radial-gradient(circle at 0% 0%, #2e3440 0%, #0d131e 100%) !important;
-}
-[data-theme="light"] body {
-    background: radial-gradient(circle at 0% 0%, #ffffff 0%, #eceff4 100%) !important;
+    background: radial-gradient(circle at 0% 0%, var(--color-gradient-start) 0%, var(--color-gradient-end) 100%) !important;
 }
 
 /* Upgraded Welcome Screen (index.html) */
 .nord-gradient {
-    background: radial-gradient(circle at 0% 0%, #2e3440 0%, #0d131e 100%) !important;
-}
-[data-theme="light"] .nord-gradient {
-    background: radial-gradient(circle at 0% 0%, #ffffff 0%, #eceff4 100%) !important;
+    background: radial-gradient(circle at 0% 0%, var(--color-gradient-start) 0%, var(--color-gradient-end) 100%) !important;
 }
 
 body.welcome-page {
@@ -1478,14 +1581,11 @@ body.welcome-page {
     position: absolute;
     width: 300px;
     height: 300px;
-    background: radial-gradient(circle, rgba(136, 192, 208, 0.15) 0%, rgba(136, 192, 208, 0) 70%);
+    background: radial-gradient(circle, var(--color-aurora) 0%, transparent 70%);
     top: -100px;
     right: -100px;
     pointer-events: none;
     transition: transform 0.1s ease-out;
-}
-[data-theme="light"] .aurora-glow {
-    background: radial-gradient(circle, rgba(94, 129, 172, 0.15) 0%, rgba(94, 129, 172, 0) 70%);
 }
 
 .welcome-page-main {
@@ -1618,13 +1718,9 @@ body.welcome-page {
 }
 .btn-primary-upgraded {
     background-color: var(--color-primary);
-    color: #2e3440;
+    color: var(--color-btn-primary-text);
     border: none;
-    box-shadow: 0 0 20px rgba(136, 192, 208, 0.2);
-}
-[data-theme="light"] .btn-primary-upgraded {
-    color: var(--color-white);
-    box-shadow: 0 4px 10px var(--color-shadow);
+    box-shadow: 0 4px 12px var(--color-shadow);
 }
 .btn-primary-upgraded:hover {
     filter: brightness(1.1);
@@ -1765,16 +1861,12 @@ body.welcome-page {
     position: relative;
     display: flex;
     align-items: center;
-    background: rgba(136, 192, 208, 0.08);
-    border: 1px solid rgba(136, 192, 208, 0.25);
+    background: var(--color-id-display-bg);
+    border: 1px solid var(--color-id-display-border);
     border-radius: 12px;
     padding: 2px;
     margin-bottom: 16px;
     box-sizing: border-box;
-}
-[data-theme="light"] .id-display-glass {
-    background: rgba(255, 255, 255, 0.6) !important;
-    border: 1px solid rgba(94, 129, 172, 0.3) !important;
 }
 .id-input-glass {
     width: 100%;
@@ -1844,8 +1936,8 @@ body.welcome-page {
 .sidebar {
     width: 44px;
     height: 100%;
-    border-right: 1px solid var(--color-border);
-    background-color: rgba(255, 255, 255, 0.015);
+    border-right: 1px solid var(--color-sidebar-border);
+    background-color: var(--color-sidebar-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     display: flex;
@@ -1855,10 +1947,6 @@ body.welcome-page {
     padding: 18px 0;
     flex-shrink: 0;
     transition: background-color 0.2s, border-color 0.2s;
-}
-[data-theme="light"] .sidebar {
-    background-color: rgba(255, 255, 255, 0.4) !important;
-    border-right: 1px solid rgba(94, 129, 172, 0.15) !important;
 }
 
 .scene-container {
@@ -1880,33 +1968,5 @@ body.welcome-page {
     background-color: transparent !important;
 }
 
-/* Light Theme Contrast & UI Refinements */
-[data-theme="light"] .status-badge {
-    background-color: rgba(46, 125, 50, 0.15) !important;
-    color: #2e7d32 !important;
-    border: 1px solid rgba(46, 125, 50, 0.2) !important;
-}
 
-[data-theme="light"] .status-badge .status-dot,
-[data-theme="light"] .status-dot {
-    background-color: #2e7d32 !important;
-}
-
-[data-theme="light"] .online-indicator.online {
-    background-color: #2e7d32 !important;
-    border-color: #2e7d32 !important;
-    box-shadow: 0 0 4px rgba(46, 125, 50, 0.4) !important;
-}
-
-[data-theme="light"] .msg-bubble.received {
-    background-color: rgba(255, 255, 255, 0.65) !important;
-    border: 1px solid rgba(94, 129, 172, 0.12) !important;
-    color: var(--color-text) !important;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
-}
-
-[data-theme="light"] .chat-input-bar {
-    background: rgba(255, 255, 255, 0.7) !important;
-    border-color: rgba(94, 129, 172, 0.25) !important;
-}
 

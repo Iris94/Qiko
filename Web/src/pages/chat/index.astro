@@ -30,10 +30,13 @@ import '../../styles/chat/style.css';
             </button>
         </div>
 
-        <!-- Upgraded Footer -->
         <footer class="welcome-footer-upgraded" style="border-top: 1px solid var(--color-border); margin-top: 12px; width: 100%; opacity: 0.85;">
             <div class="welcome-footer-left">
                 <span>© Qiko 2026 • v0.1</span>
+                <select class="theme-select-dropdown">
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                </select>
             </div>
             <div class="welcome-footer-right">
                 <span class="welcome-encrypted-dot"></span>
@@ -54,6 +57,7 @@ import '../../styles/chat/style.css';
     align-items: center;
     justify-content: center;
     min-height: 100vh;
+    width: 100%;
     padding: 40px 24px;
     background-color: transparent !important;
     box-sizing: border-box;
